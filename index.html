@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor</title>
+
+<style>
+:root {
+  --bg: linear-gradient(180deg, #020617, #020617, #1e1b4b);
+  --glass: rgba(255,255,255,0.14);
+  --glass-strong: rgba(255,255,255,0.22);
+  --border: rgba(255,255,255,0.25);
+  --text: #fff;
+  --muted: #a5b4fc;
+  --accent: #7c3aed;
+  --glow: rgba(124,58,237,0.6);
+}
+
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text);
+}
+
+.app {
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Header iOS */
+header {
+  text-align: center;
+  animation: fadeDown .6s ease;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 600;
+}
+
+header p {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.card {
+  flex: 1;
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.45);
+  animation: scaleIn .5s cubic-bezier(.2,.8,.2,1);
+}
+
+.selector {
+  display: flex;
+  gap: 6px;
+}
+
+.selector button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.08);
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: .25s cubic-bezier(.2,.8,.2,1);
+}
+
+.selector button.active {
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--glow);
+  transform: scale(1.05);
+}
+
+.display {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--glass-strong);
+  font-size: 1.2rem;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  letter-spacing: 1px;
+  transition: .2s;
+}
+
+.display.error {
+  border-color: #f87171;
+  animation: shake .3s;
+}
+
+.output {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.copy {
+  font-size: 0.65rem;
+  opacity: .7;
+  cursor: pointer;
+}
+
+.copy:hover {
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* Histórico */
+.history {
+  font-size: 0.65rem;
+  color: var(--muted);
+  max-height: 70px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+/* Teclado iOS Glass */
+.keyboard {
+  margin-top: 6px;
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  animation: fadeUp .6s ease;
+}
+
+.key {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: .15s cubic-bezier(.2,.8,.2,1);
+  user-select: none;
+}
+
+.key:active {
+  transform: scale(0.9);
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--glow);
+}
+
+/* animações iOS */
+@keyframes fadeUp {
+  from {opacity:0; transform: translateY(20px);}
+  to {opacity:1; transform: translateY(0);}
+}
+
+@keyframes fadeDown {
+  from {opacity:0; transform: translateY(-20px);}
+  to {opacity:1; transform: translateY(0);}
+}
+
+@keyframes scaleIn {
+  from {opacity:0; transform: scale(.9);}
+  to {opacity:1; transform: scale(1);}
+}
+
+@keyframes shake {
+  0%,100% {transform: translateX(0);}
+  25% {transform: translateX(-4px);}
+  50% {transform: translateX(4px);}
+  75% {transform: translateX(-4px);}
+}
+
+@media (min-width: 600px) {
+  .app {
+    max-width: 420px;
+    max-height: 820px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Conversor</h1>
+    <p>Binário • Decimal • Hexadecimal</p>
+  </header>
+
+  <div class="card">
+    <div class="selector">
+      <button class="active" data-type="bin">BIN</button>
+      <button data-type="dec">DEC</button>
+      <button data-type="hex">HEX</button>
+    </div>
+
+    <div id="display" class="display">0</div>
+
+    <div class="output">Binário: <span id="outBin">—</span> <span class="copy" data-copy="outBin">copiar</span></div>
+    <div class="output">Decimal: <span id="outDec">—</span> <span class="copy" data-copy="outDec">copiar</span></div>
+    <div class="output">Hex: <span id="outHex">—</span> <span class="copy" data-copy="outHex">copiar</span></div>
+
+    <div class="history" id="history"></div>
+  </div>
+
+  <!-- teclado iOS -->
+  <div class="keyboard" id="keyboard"></div>
+</div>
+
+<script>
+const display = document.getElementById("display");
+const outBin = document.getElementById("outBin");
+const outDec = document.getElementById("outDec");
+const outHex = document.getElementById("outHex");
+const historyBox = document.getElementById("history");
+const keyboard = document.getElementById("keyboard");
+const buttons = document.querySelectorAll(".selector button");
+
+let mode = "bin";
+let value = "";
+
+// histórico real
+let history = JSON.parse(localStorage.getItem("convHistory") || "[]");
+renderHistory();
+
+// layout do teclado por modo
+const keys = {
+  bin: ["1","0","⌫","C"],
+  dec: ["7","8","9","4","5","6","1","2","3","0","⌫","C"],
+  hex: ["A","B","C","D","E","F","7","8","9","4","5","6","1","2","3","0","⌫","C"]
+};
+
+function renderKeyboard() {
+  keyboard.innerHTML = "";
+  keys[mode].forEach(k => {
+    const btn = document.createElement("div");
+    btn.className = "key";
+    btn.textContent = k;
+    btn.onclick = () => pressKey(k);
+    keyboard.appendChild(btn);
+  });
+}
+
+function pressKey(k) {
+  if (k === "C") {
+    value = "";
+  } else if (k === "⌫") {
+    value = value.slice(0,-1);
+  } else {
+    value += k;
+  }
+  update();
+}
+
+function update() {
+  if (value === "") {
+    display.textContent = "0";
+    clearOutput();
+    return;
+  }
+
+  try {
+    let n;
+    if (mode === "bin") {
+      if (!/^[01]+$/.test(value)) throw 1;
+      n = parseInt(value,2);
+    }
+    if (mode === "dec") {
+      if (!/^\d+$/.test(value)) throw 1;
+      n = parseInt(value,10);
+    }
+    if (mode === "hex") {
+      if (!/^[0-9a-fA-F]+$/.test(value)) throw 1;
+      n = parseInt(value,16);
+    }
+
+    display.classList.remove("error");
+    display.textContent = value;
+
+    outBin.textContent = n.toString(2);
+    outDec.textContent = n.toString(10);
+    outHex.textContent = n.toString(16).toUpperCase();
+
+    saveHistory(value + " → " + n);
+
+  } catch {
+    display.classList.add("error");
+    clearOutput();
+  }
+}
+
+function clearOutput() {
+  outBin.textContent = "—";
+  outDec.textContent = "—";
+  outHex.textContent = "—";
+}
+
+function saveHistory(text) {
+  history.unshift(text);
+  history = history.slice(0,15);
+  localStorage.setItem("convHistory", JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  historyBox.innerHTML = history.map(h => `<div>• ${h}</div>`).join("");
+}
+
+// troca de modo
+buttons.forEach(btn => {
+  btn.onclick = () => {
+    buttons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    mode = btn.dataset.type;
+    value = "";
+    update();
+    renderKeyboard();
+  };
+});
+
+// copiar real
+document.querySelectorAll(".copy").forEach(btn => {
+  btn.onclick = () => {
+    const id = btn.dataset.copy;
+    const text = document.getElementById(id).textContent;
+    if (text !== "—") {
+      navigator.clipboard.writeText(text);
+      btn.textContent = "copiado";
+      setTimeout(()=>btn.textContent="copiar",800);
+    }
+  };
+});
+
+// inicializar
+renderKeyboard();
+update();
+</script>
+
+</body>
+</html>
