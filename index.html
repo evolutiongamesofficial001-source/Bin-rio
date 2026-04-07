@@ -7,112 +7,31 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 
 <style>
 *{box-sizing:border-box;}
 body{margin:0;background:#000;color:#00ff88;font-family:Arial;}
-
 #app{height:100vh;display:flex;flex-direction:column;}
-
-.header{
-padding:15px;
-border-bottom:1px solid #00ff88;
-display:flex;
-align-items:center;
-gap:10px;
-justify-content:space-between;
-}
-
+.header{padding:15px;border-bottom:1px solid #00ff88;display:flex;align-items:center;justify-content:space-between;}
 .lista{flex:1;overflow:auto;}
-
-.contato{
-padding:15px;
-border-bottom:1px solid rgba(0,255,136,.2);
-display:flex;
-justify-content:space-between;
-cursor:pointer;
-}
-
-.status{font-size:12px;}
-
-.chat-box{
-flex:1;
-overflow:auto;
-padding:10px;
-display:flex;
-flex-direction:column;
-}
-
-.msg{
-padding:10px;
-margin:5px;
-border-radius:12px;
-max-width:75%;
-animation:msgAnim .2s;
-}
-
+.contato{padding:15px;border-bottom:1px solid rgba(0,255,136,.2);display:flex;justify-content:space-between;cursor:pointer;}
+.chat-box{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;}
+.msg{padding:10px;margin:5px;border-radius:12px;max-width:75%;}
 .me{background:#00ff88;color:black;align-self:flex-end;}
 .other{background:#111;}
-
+.nomeGrupo{color:red;font-size:12px;}
 .time{font-size:10px;opacity:.6;text-align:right;}
-
-.nomeGrupo{
-color:red;
-font-size:12px;
-}
-
-img{max-width:200px;border-radius:10px;}
-
-@keyframes msgAnim{
-from{opacity:0;transform:translateY(10px);}
-to{opacity:1;}
-}
-
-.chat-input{
-display:flex;
-gap:5px;
-padding:10px;
-}
-
-.chat-input input{
-flex:1;
-padding:10px;
-border:none;
-border-radius:20px;
-background:#111;
-color:#0f0;
-}
-
-.file-btn{
-width:40px;height:40px;
-background:#111;
-border-radius:50%;
-display:flex;align-items:center;justify-content:center;
-}
-
+.chat-input{display:flex;gap:5px;padding:10px;}
+.chat-input input{flex:1;padding:10px;border:none;border-radius:20px;background:#111;color:#0f0;}
+.file-btn{width:40px;height:40px;background:#111;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 #img{display:none;}
-
-.send-btn{
-width:45px;height:45px;
-background:#00ff88;
-border:none;border-radius:50%;
-}
-
-input,button{
-width:100%;
-padding:10px;
-margin:5px 0;
-background:#111;
-border:none;
-border-radius:10px;
-color:#0f0;
-}
-button{background:#00ff88;color:black;}
+.send-btn{width:45px;height:45px;background:#00ff88;border:none;border-radius:50%;}
+button{background:#00ff88;color:black;border:none;padding:10px;border-radius:10px;}
 </style>
 </head>
 
 <body>
-
 <div id="app"></div>
 
 <script>
@@ -123,11 +42,31 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const messaging = firebase.messaging();
 
 const app = document.getElementById("app");
 
 let user = localStorage.getItem("user");
 let contatoAtual = "";
+
+// 🔔 NOTIFICAÇÃO
+function ativarNotificacao(){
+Notification.requestPermission().then(permission=>{
+if(permission==="granted"){
+messaging.getToken({
+vapidKey:"COLOQUE_SUA_VAPID_KEY_AQUI"
+}).then(token=>{
+db.ref("tokens/"+user).set(token);
+});
+}
+});
+}
+
+messaging.onMessage(payload=>{
+new Notification(payload.notification.title,{
+body:payload.notification.body
+});
+});
 
 // REGISTRO
 function telaRegistro(){
@@ -154,6 +93,7 @@ localStorage.setItem("user",nome);
 user=nome;
 
 setOnline();
+ativarNotificacao();
 telaHub();
 });
 }
@@ -161,7 +101,6 @@ telaHub();
 // ONLINE
 function setOnline(){
 let ref=db.ref("status/"+user);
-
 db.ref(".info/connected").on("value",snap=>{
 if(snap.val()){
 ref.set({online:true});
@@ -179,6 +118,7 @@ app.innerHTML=`
 <input id="contato" placeholder="Nome do contato">
 <button onclick="abrirChat(document.getElementById('contato').value)">Conversar</button>
 <button onclick="criarGrupo()">Criar Grupo</button>
+<button onclick="entrarGrupo()">Entrar em Grupo</button>
 </div>
 
 <div id="lista" class="lista"></div>
@@ -187,7 +127,7 @@ app.innerHTML=`
 carregarContatos();
 }
 
-// GRUPO
+// CRIAR GRUPO
 function criarGrupo(){
 let nome = prompt("Nome do grupo:");
 if(!nome) return;
@@ -201,93 +141,96 @@ membros:[user]
 
 add(user,id);
 
-alert("Grupo criado!");
+alert("Grupo criado!\nID: "+id);
+}
+
+// ENTRAR NO GRUPO
+function entrarGrupo(){
+let id = prompt("Digite o ID do grupo:");
+
+if(!id || !id.startsWith("grupo_")){
+alert("ID inválido");
+return;
+}
+
+db.ref("grupos/"+id).once("value",snap=>{
+if(!snap.exists()){
+alert("Grupo não existe");
+return;
+}
+
+let grupo = snap.val();
+let membros = grupo.membros || [];
+
+if(!membros.includes(user)){
+membros.push(user);
+db.ref("grupos/"+id+"/membros").set(membros);
+}
+
+add(user,id);
+
+alert("Entrou no grupo!");
+});
 }
 
 // SAIR DO GRUPO
 function sairGrupo(id){
-
 db.ref("grupos/"+id+"/membros").once("value",snap=>{
-let membros = snap.val()||[];
-
-membros = membros.filter(m=>m!==user);
-
-db.ref("grupos/"+id+"/membros").set(membros);
+let m=snap.val()||[];
+m=m.filter(x=>x!==user);
+db.ref("grupos/"+id+"/membros").set(m);
 });
 
-// remove dos contatos
 db.ref("contatos/"+user).once("value",s=>{
 let lista=s.val()||[];
-lista = lista.filter(c=>c!==id);
+lista=lista.filter(c=>c!==id);
 db.ref("contatos/"+user).set(lista);
 });
 
 telaHub();
 }
 
-// LOCAL
-function salvarLocal(lista){
-localStorage.setItem("contatos_"+user,JSON.stringify(lista));
-}
-
-function carregarLocal(){
-return JSON.parse(localStorage.getItem("contatos_"+user)||"[]");
-}
-
 // CONTATOS
 function carregarContatos(){
-renderLista(carregarLocal());
-
 db.ref("contatos/"+user).on("value",snap=>{
-let lista=snap.val()||[];
-salvarLocal(lista);
-renderLista(lista);
+renderLista(snap.val()||[]);
 });
 }
 
-// LISTA (CORRIGIDA)
 function renderLista(lista){
 let html="";
-
 lista.forEach(c=>{
-let isGrupo = c.startsWith("grupo_");
+let isGrupo=c.startsWith("grupo_");
 
 if(isGrupo){
 db.ref("grupos/"+c).once("value",snap=>{
-let nome = snap.val()?.nome || "Grupo";
+let nome=snap.val()?.nome||"Grupo";
 
 html+=`
 <div class="contato" onclick="abrirChat('${c}')">
 <div style="color:#00aaff">👥 ${nome}</div>
-<div class="status" id="s_${c}"></div>
 </div>`;
-
 document.getElementById("lista").innerHTML=html;
 });
 }else{
-
 html+=`
 <div class="contato" onclick="abrirChat('${c}')">
-<div style="color:#00ff88">👤 ${c}</div>
-<div class="status" id="s_${c}"></div>
+<div>👤 ${c}</div>
 </div>`;
-
 document.getElementById("lista").innerHTML=html;
 }
-
 });
 }
 
 // CHAT
 function abrirChat(nome){
-
 contatoAtual=nome;
-let isGrupo = nome.startsWith("grupo_");
-let chatId = isGrupo ? nome : [user,nome].sort().join("_");
+let isGrupo=nome.startsWith("grupo_");
+let chatId=isGrupo?nome:[user,nome].sort().join("_");
 
 app.innerHTML=`
 <div class="header">
-<span onclick="telaHub()" style="cursor:pointer;">⬅️</span>
+<span onclick="telaHub()">⬅️</span>
 <span id="topo">${nome}</span>
 ${isGrupo?`<button onclick="sairGrupo('${nome}')">Sair</button>`:""}
 </div>
@@ -295,34 +238,25 @@ ${isGrupo?`<button onclick="sairGrupo('${nome}')">Sair</button>`:""}
 <div id="msgs" class="chat-box"></div>
 
 <div class="chat-input">
-<label class="file-btn">📎
-<input type="file" id="img" accept="image/*">
-</label>
-
+<label class="file-btn">📎<input type="file" id="img"></label>
 <input id="msg" placeholder="Mensagem">
-
 <button class="send-btn" onclick="enviar()">➤</button>
 </div>
 `;
 
-// nome real do grupo no topo
 if(isGrupo){
 db.ref("grupos/"+nome).once("value",snap=>{
-let g = snap.val();
-if(g){
-document.getElementById("topo").innerText = "👥 " + g.nome;
-}
+let g=snap.val();
+if(g) document.getElementById("topo").innerText="👥 "+g.nome;
 });
 }
 
-// MENSAGENS
 db.ref("chats/"+chatId).on("value",snap=>{
 let msgs=snap.val()||{};
 let html="";
 
 Object.values(msgs).forEach(m=>{
-let hora=new Date(m.time||Date.now())
-.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+let hora=new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
 html+=`
 <div class="msg ${m.de===user?'me':'other'}">
@@ -341,49 +275,47 @@ box.scrollTop=box.scrollHeight;
 
 // ENVIAR
 function enviar(){
+let texto=document.getElementById("msg").value.trim();
+if(!texto) return;
 
-let inputMsg=document.getElementById("msg");
-let inputImg=document.getElementById("img");
+let isGrupo=contatoAtual.startsWith("grupo_");
+let chatId=isGrupo?contatoAtual:[user,contatoAtual].sort().join("_");
 
-let texto=inputMsg.value.trim();
-let file=inputImg.files[0];
-
-if(!texto && !file) return;
-
-let isGrupo = contatoAtual.startsWith("grupo_");
-let chatId = isGrupo ? contatoAtual : [user,contatoAtual].sort().join("_");
-
-if(!isGrupo){
-add(user,contatoAtual);
-add(contatoAtual,user);
-}
-
-if(file){
-let reader=new FileReader();
-reader.onload=()=>salvar(texto,reader.result);
-reader.readAsDataURL(file);
-}else{
-salvar(texto,"");
-}
-
-function salvar(texto,img){
 db.ref("chats/"+chatId).push({
 de:user,
 texto,
-img,
 time:Date.now()
 });
 
-inputMsg.value="";
-inputImg.value="";
+// NOTIFICAÇÃO (simples)
+if(!isGrupo){
+db.ref("tokens/"+contatoAtual).once("value",snap=>{
+let token=snap.val();
+
+fetch("https://fcm.googleapis.com/fcm/send",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"key=SUA_SERVER_KEY"
+},
+body:JSON.stringify({
+to:token,
+notification:{
+title:user,
+body:texto
 }
+})
+});
+});
+}
+
+document.getElementById("msg").value="";
 }
 
 // AUTO ADD
 function add(d,c){
 db.ref("contatos/"+d).once("value",s=>{
 let lista=s.val()||[];
-
 if(!lista.includes(c)){
 lista.push(c);
 db.ref("contatos/"+d).set(lista);
@@ -396,10 +328,10 @@ if(!user){
 telaRegistro();
 }else{
 setOnline();
+ativarNotificacao();
 telaHub();
 }
 
 </script>
-
 </body>
 </html>
