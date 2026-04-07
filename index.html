@@ -20,6 +20,7 @@ border-bottom:1px solid #00ff88;
 display:flex;
 align-items:center;
 gap:10px;
+justify-content:space-between;
 }
 
 .lista{flex:1;overflow:auto;}
@@ -54,6 +55,11 @@ animation:msgAnim .2s;
 .other{background:#111;}
 
 .time{font-size:10px;opacity:.6;text-align:right;}
+
+.nomeGrupo{
+color:red;
+font-size:12px;
+}
 
 img{max-width:200px;border-radius:10px;}
 
@@ -172,12 +178,51 @@ app.innerHTML=`
 <div style="padding:10px">
 <input id="contato" placeholder="Nome do contato">
 <button onclick="abrirChat(document.getElementById('contato').value)">Conversar</button>
+<button onclick="criarGrupo()">Criar Grupo</button>
 </div>
 
 <div id="lista" class="lista"></div>
 `;
 
 carregarContatos();
+}
+
+// GRUPO
+function criarGrupo(){
+let nome = prompt("Nome do grupo:");
+if(!nome) return;
+
+let id = "grupo_"+Date.now();
+
+db.ref("grupos/"+id).set({
+nome:nome,
+membros:[user]
+});
+
+add(user,id);
+
+alert("Grupo criado!");
+}
+
+// SAIR DO GRUPO
+function sairGrupo(id){
+
+db.ref("grupos/"+id+"/membros").once("value",snap=>{
+let membros = snap.val()||[];
+
+membros = membros.filter(m=>m!==user);
+
+db.ref("grupos/"+id+"/membros").set(membros);
+});
+
+// remove dos contatos
+db.ref("contatos/"+user).once("value",s=>{
+let lista=s.val()||[];
+lista = lista.filter(c=>c!==id);
+db.ref("contatos/"+user).set(lista);
+});
+
+telaHub();
 }
 
 // LOCAL
@@ -200,43 +245,36 @@ renderLista(lista);
 });
 }
 
-// LISTA
+// LISTA (CORRIGIDA)
 function renderLista(lista){
 let html="";
 
 lista.forEach(c=>{
+let isGrupo = c.startsWith("grupo_");
+
+if(isGrupo){
+db.ref("grupos/"+c).once("value",snap=>{
+let nome = snap.val()?.nome || "Grupo";
+
 html+=`
 <div class="contato" onclick="abrirChat('${c}')">
-<div>${c}</div>
-<div class="status" id="s_${c}">...</div>
+<div style="color:#00aaff">👥 ${nome}</div>
+<div class="status" id="s_${c}"></div>
 </div>`;
-});
 
 document.getElementById("lista").innerHTML=html;
+});
+}else{
 
-// STATUS
-lista.forEach(c=>{
-db.ref("status/"+c).on("value",snap=>{
-let el=document.getElementById("s_"+c);
-if(el){
-el.innerText=snap.val()?.online?"🟢 online":"⚫ offline";
+html+=`
+<div class="contato" onclick="abrirChat('${c}')">
+<div style="color:#00ff88">👤 ${c}</div>
+<div class="status" id="s_${c}"></div>
+</div>`;
+
+document.getElementById("lista").innerHTML=html;
 }
-});
 
-// DIGITANDO NA LISTA
-db.ref("typing").on("value",snap=>{
-let typing=snap.val()||{};
-let digitando=false;
-
-Object.values(typing).forEach(chat=>{
-if(chat[c]) digitando=true;
-});
-
-let el=document.getElementById("s_"+c);
-if(el && digitando){
-el.innerText="⌨️ digitando...";
-}
-});
 });
 }
 
@@ -244,12 +282,14 @@ el.innerText="⌨️ digitando...";
 function abrirChat(nome){
 
 contatoAtual=nome;
-let chatId=[user,nome].sort().join("_");
+let isGrupo = nome.startsWith("grupo_");
+let chatId = isGrupo ? nome : [user,nome].sort().join("_");
 
 app.innerHTML=`
 <div class="header">
 <span onclick="telaHub()" style="cursor:pointer;">⬅️</span>
 <span id="topo">${nome}</span>
+${isGrupo?`<button onclick="sairGrupo('${nome}')">Sair</button>`:""}
 </div>
 
 <div id="msgs" class="chat-box"></div>
@@ -259,32 +299,21 @@ app.innerHTML=`
 <input type="file" id="img" accept="image/*">
 </label>
 
-<input id="msg" placeholder="Mensagem" oninput="digitando()">
+<input id="msg" placeholder="Mensagem">
 
 <button class="send-btn" onclick="enviar()">➤</button>
 </div>
 `;
 
-// DIGITANDO TOPO
-let typingAnim;
-
-db.ref("typing/"+chatId+"/"+nome).on("value",snap=>{
-let topo=document.getElementById("topo");
-
-if(snap.val()){
-let p=0;
-clearInterval(typingAnim);
-
-typingAnim=setInterval(()=>{
-p=(p+1)%4;
-topo.innerText=nome+" digitando"+".".repeat(p);
-},500);
-
-}else{
-clearInterval(typingAnim);
-topo.innerText=nome;
+// nome real do grupo no topo
+if(isGrupo){
+db.ref("grupos/"+nome).once("value",snap=>{
+let g = snap.val();
+if(g){
+document.getElementById("topo").innerText = "👥 " + g.nome;
 }
 });
+}
 
 // MENSAGENS
 db.ref("chats/"+chatId).on("value",snap=>{
@@ -297,6 +326,7 @@ let hora=new Date(m.time||Date.now())
 
 html+=`
 <div class="msg ${m.de===user?'me':'other'}">
+${isGrupo?`<div class="nomeGrupo">${m.de}</div>`:""}
 ${m.texto||""}
 ${m.img?`<img src="${m.img}">`:""}
 <div class="time">${hora}</div>
@@ -307,18 +337,6 @@ let box=document.getElementById("msgs");
 box.innerHTML=html;
 box.scrollTop=box.scrollHeight;
 });
-}
-
-// DIGITANDO
-function digitando(){
-let chatId=[user,contatoAtual].sort().join("_");
-
-db.ref("typing/"+chatId+"/"+user).set(true);
-
-clearTimeout(window.t);
-window.t=setTimeout(()=>{
-db.ref("typing/"+chatId+"/"+user).set(false);
-},1000);
 }
 
 // ENVIAR
@@ -332,11 +350,13 @@ let file=inputImg.files[0];
 
 if(!texto && !file) return;
 
-let chatId=[user,contatoAtual].sort().join("_");
+let isGrupo = contatoAtual.startsWith("grupo_");
+let chatId = isGrupo ? contatoAtual : [user,contatoAtual].sort().join("_");
 
-// AUTO CONTATO
+if(!isGrupo){
 add(user,contatoAtual);
 add(contatoAtual,user);
+}
 
 if(file){
 let reader=new FileReader();
@@ -354,13 +374,12 @@ img,
 time:Date.now()
 });
 
-// LIMPA (CORREÇÃO BUG)
 inputMsg.value="";
 inputImg.value="";
 }
 }
 
-// AUTO ADD CONTATO
+// AUTO ADD
 function add(d,c){
 db.ref("contatos/"+d).once("value",s=>{
 let lista=s.val()||[];
