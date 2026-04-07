@@ -7,24 +7,166 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 
 <style>
 *{box-sizing:border-box;}
-body{margin:0;background:#000;color:#00ff88;font-family:Arial;}
-#app{height:100vh;display:flex;flex-direction:column;}
-.header{padding:15px;border-bottom:1px solid #00ff88;display:flex;justify-content:space-between;}
-.lista{flex:1;overflow:auto;}
-.contato{padding:15px;border-bottom:1px solid rgba(0,255,136,.2);cursor:pointer;}
-.chat-box{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;}
-.msg{padding:10px;margin:5px;border-radius:12px;max-width:75%;}
-.me{background:#00ff88;color:black;align-self:flex-end;}
-.other{background:#111;}
-.nomeGrupo{color:red;font-size:12px;}
-.time{font-size:10px;opacity:.6;text-align:right;}
-.chat-input{display:flex;gap:5px;padding:10px;}
-.chat-input input{flex:1;padding:10px;border-radius:20px;background:#111;color:#0f0;border:none;}
-button{background:#00ff88;color:black;border:none;padding:10px;border-radius:10px;}
+
+body{
+margin:0;
+background:#000;
+color:#00ff88;
+font-family:Arial;
+}
+
+/* APP */
+#app{
+height:100vh;
+display:flex;
+flex-direction:column;
+}
+
+/* HEADER */
+.header{
+padding:14px;
+border-bottom:1px solid rgba(0,255,136,.2);
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:rgba(0,0,0,.8);
+backdrop-filter:blur(8px);
+font-weight:bold;
+letter-spacing:.5px;
+}
+
+/* LISTA */
+.lista{
+flex:1;
+overflow:auto;
+}
+
+.contato{
+padding:14px;
+border-bottom:1px solid rgba(0,255,136,.08);
+cursor:pointer;
+transition:.2s;
+border-radius:8px;
+margin:4px 8px;
+}
+
+.contato:hover{
+background:rgba(0,255,136,.06);
+transform:scale(1.01);
+}
+
+.contato small{
+display:block;
+opacity:.6;
+font-size:12px;
+margin-top:4px;
+}
+
+/* CHAT */
+.chat-box{
+flex:1;
+overflow:auto;
+padding:10px;
+display:flex;
+flex-direction:column;
+}
+
+/* MENSAGENS */
+.msg{
+padding:10px;
+margin:6px;
+border-radius:14px;
+max-width:75%;
+animation:fade .2s ease;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(6px);}
+to{opacity:1;transform:translateY(0);}
+}
+
+.me{
+background:linear-gradient(135deg,#00ff88,#00cc6a);
+color:#000;
+align-self:flex-end;
+box-shadow:0 0 8px rgba(0,255,136,.4);
+}
+
+.other{
+background:#111;
+border:1px solid rgba(0,255,136,.1);
+}
+
+.nomeGrupo{
+color:#00aaff;
+font-size:11px;
+margin-bottom:3px;
+}
+
+.time{
+font-size:10px;
+opacity:.5;
+text-align:right;
+margin-top:4px;
+}
+
+/* INPUT */
+.chat-input{
+display:flex;
+gap:8px;
+padding:10px;
+background:#000;
+border-top:1px solid rgba(0,255,136,.1);
+}
+
+.chat-input input{
+flex:1;
+padding:12px;
+border-radius:20px;
+background:#111;
+color:#0f0;
+border:none;
+outline:none;
+transition:.2s;
+}
+
+.chat-input input:focus{
+background:#151515;
+box-shadow:0 0 6px rgba(0,255,136,.3);
+}
+
+/* BOTÃO */
+button{
+background:linear-gradient(135deg,#00ff88,#00cc6a);
+color:#000;
+border:none;
+padding:10px 14px;
+border-radius:10px;
+cursor:pointer;
+transition:.2s;
+font-weight:bold;
+}
+
+button:hover{
+transform:scale(1.05);
+box-shadow:0 0 10px rgba(0,255,136,.4);
+}
+
+button:active{
+transform:scale(.95);
+}
+
+/* SCROLL */
+::-webkit-scrollbar{
+width:5px;
+}
+::-webkit-scrollbar-thumb{
+background:#00ff88;
+border-radius:10px;
+}
 </style>
 </head>
 
@@ -39,37 +181,17 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const messaging = firebase.messaging();
 
 const app = document.getElementById("app");
 
 let user = localStorage.getItem("user");
 let contatoAtual = "";
 
-// 🔔 NOTIFICAÇÃO
-function ativarNotificacao(){
-Notification.requestPermission().then(p=>{
-if(p==="granted"){
-messaging.getToken({
-vapidKey:"COLOQUE_SUA_VAPID_KEY_AQUI"
-}).then(t=>{
-db.ref("tokens/"+user).set(t);
-});
-}
-});
-}
-
-messaging.onMessage(payload=>{
-new Notification(payload.notification.title,{
-body:payload.notification.body
-});
-});
-
-// REGISTRO
+// ================= REGISTRO =================
 function telaRegistro(){
 app.innerHTML=`
 <div class="header">Criar Conta</div>
-<div style="padding:10px">
+<div style="padding:12px">
 <input id="nome" placeholder="Nome único">
 <button onclick="registrar()">Entrar</button>
 </div>`;
@@ -77,6 +199,7 @@ app.innerHTML=`
 
 function registrar(){
 let nome=document.getElementById("nome").value.trim();
+if(!nome) return alert("Digite um nome");
 
 db.ref("users").once("value",snap=>{
 let users=snap.val()||{};
@@ -90,12 +213,11 @@ localStorage.setItem("user",nome);
 user=nome;
 
 setOnline();
-ativarNotificacao();
 telaHub();
 });
 }
 
-// ONLINE
+// ================= ONLINE =================
 function setOnline(){
 let ref=db.ref("status/"+user);
 db.ref(".info/connected").on("value",snap=>{
@@ -106,16 +228,15 @@ ref.onDisconnect().set({online:false});
 });
 }
 
-// HUB
+// ================= HUB =================
 function telaHub(){
 app.innerHTML=`
 <div class="header">PI Chat - ${user}</div>
 
 <div style="padding:10px">
 <input id="contato" placeholder="Nome do contato">
-<button onclick="abrirChat(document.getElementById('contato').value)">Conversar</button>
-<button onclick="criarGrupo()">Criar Grupo</button>
-<button onclick="entrarGrupo()">Entrar em Grupo</button>
+<button onclick="abrirChatPrivado()">Conversar</button>
+<button onclick="criarGrupo()">Grupo</button>
 </div>
 
 <div id="lista" class="lista"></div>
@@ -124,7 +245,26 @@ app.innerHTML=`
 carregarContatos();
 }
 
-// CRIAR GRUPO
+function abrirChatPrivado(){
+let nome = document.getElementById("contato").value.trim();
+if(!nome) return;
+
+db.ref("users").once("value",snap=>{
+let users = Object.values(snap.val()||{});
+
+if(!users.includes(nome)){
+alert("Usuário não existe!");
+return;
+}
+
+add(user,nome);
+add(nome,user);
+
+abrirChat(nome);
+});
+}
+
+// ================= GRUPOS =================
 function criarGrupo(){
 let nome = prompt("Nome do grupo:");
 if(!nome) return;
@@ -137,91 +277,62 @@ membros:[user]
 });
 
 add(user,id);
-
-alert("Grupo criado!\nID: "+id);
+alert("ID: "+id);
 }
 
-// ENTRAR GRUPO
-function entrarGrupo(){
-let id = prompt("Digite o ID do grupo:");
-
-if(!id || !id.startsWith("grupo_")){
-alert("ID inválido");
-return;
-}
-
-db.ref("grupos/"+id).once("value",snap=>{
-if(!snap.exists()){
-alert("Grupo não existe");
-return;
-}
-
-let membros = snap.val().membros || [];
-
-if(!membros.includes(user)){
-membros.push(user);
-db.ref("grupos/"+id+"/membros").set(membros);
-}
-
-add(user,id);
-
-alert("Entrou no grupo!");
-});
-}
-
-// SAIR
-function sairGrupo(id){
-db.ref("grupos/"+id+"/membros").once("value",snap=>{
-let m=snap.val()||[];
-m=m.filter(x=>x!==user);
-db.ref("grupos/"+id+"/membros").set(m);
-});
-
-db.ref("contatos/"+user).once("value",s=>{
-let lista=s.val()||[];
-lista=lista.filter(c=>c!==id);
-db.ref("contatos/"+user).set(lista);
-});
-
-telaHub();
-}
-
-// CONTATOS
+// ================= CONTATOS =================
 function carregarContatos(){
 db.ref("contatos/"+user).on("value",snap=>{
 renderLista(snap.val()||[]);
 });
 }
 
-// 🔥 CORRIGIDO (SEM BUG)
-function renderLista(lista){
+async function renderLista(lista){
 let container = document.getElementById("lista");
 container.innerHTML = "";
 
-lista.forEach(c=>{
+for(let c of lista){
+
 let isGrupo = c.startsWith("grupo_");
+let nome = c;
+let ultimaMsg = "";
+let hora = "";
+
+let chatId = isGrupo ? c : [user,c].sort().join("_");
+
+let snap = await db.ref("chats/"+chatId).limitToLast(1).once("value");
+let msgs = snap.val();
+
+if(msgs){
+let m = Object.values(msgs)[0];
+ultimaMsg = m.texto;
+hora = new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
 
 if(isGrupo){
-db.ref("grupos/"+c).once("value",snap=>{
-let nome = snap.val()?.nome || "Grupo";
-
-container.innerHTML += `
-<div class="contato" onclick="abrirChat('${c}')">
-<div style="color:#00aaff">👥 ${nome}</div>
-</div>`;
-});
+let g = await db.ref("grupos/"+c).once("value");
+nome = "👥 "+(g.val()?.nome || "Grupo");
 }else{
-container.innerHTML += `
-<div class="contato" onclick="abrirChat('${c}')">
-<div>👤 ${c}</div>
-</div>`;
-}
-});
+nome = "👤 "+c;
 }
 
-// CHAT
+let div = document.createElement("div");
+div.className="contato";
+div.onclick=()=>abrirChat(c);
+
+div.innerHTML=`
+<div>${nome}</div>
+<small>${ultimaMsg || ""} ${hora}</small>
+`;
+
+container.appendChild(div);
+}
+}
+
+// ================= CHAT =================
 function abrirChat(nome){
 contatoAtual=nome;
+
 let isGrupo=nome.startsWith("grupo_");
 let chatId=isGrupo?nome:[user,nome].sort().join("_");
 
@@ -229,7 +340,6 @@ app.innerHTML=`
 <div class="header">
 <span onclick="telaHub()">⬅️</span>
 <span id="topo">${nome}</span>
-${isGrupo?`<button onclick="sairGrupo('${nome}')">Sair</button>`:""}
 </div>
 
 <div id="msgs" class="chat-box"></div>
@@ -257,7 +367,7 @@ let hora=new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit
 html+=`
 <div class="msg ${m.de===user?'me':'other'}">
 ${isGrupo?`<div class="nomeGrupo">${m.de}</div>`:""}
-${m.texto||""}
+${m.texto}
 <div class="time">${hora}</div>
 </div>`;
 });
@@ -268,9 +378,10 @@ box.scrollTop=box.scrollHeight;
 });
 }
 
-// ENVIAR
+// ================= ENVIAR =================
 function enviar(){
-let texto=document.getElementById("msg").value.trim();
+let input=document.getElementById("msg");
+let texto=input.value.trim();
 if(!texto) return;
 
 let isGrupo=contatoAtual.startsWith("grupo_");
@@ -282,10 +393,10 @@ texto,
 time:Date.now()
 });
 
-document.getElementById("msg").value="";
+input.value="";
 }
 
-// AUTO ADD
+// ================= AUTO ADD =================
 function add(d,c){
 db.ref("contatos/"+d).once("value",s=>{
 let lista=s.val()||[];
@@ -296,12 +407,11 @@ db.ref("contatos/"+d).set(lista);
 });
 }
 
-// START
+// ================= START =================
 if(!user){
 telaRegistro();
 }else{
 setOnline();
-ativarNotificacao();
 telaHub();
 }
 
