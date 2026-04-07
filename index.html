@@ -13,9 +13,9 @@
 *{box-sizing:border-box;}
 body{margin:0;background:#000;color:#00ff88;font-family:Arial;}
 #app{height:100vh;display:flex;flex-direction:column;}
-.header{padding:15px;border-bottom:1px solid #00ff88;display:flex;align-items:center;justify-content:space-between;}
+.header{padding:15px;border-bottom:1px solid #00ff88;display:flex;justify-content:space-between;}
 .lista{flex:1;overflow:auto;}
-.contato{padding:15px;border-bottom:1px solid rgba(0,255,136,.2);display:flex;justify-content:space-between;cursor:pointer;}
+.contato{padding:15px;border-bottom:1px solid rgba(0,255,136,.2);cursor:pointer;}
 .chat-box{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;}
 .msg{padding:10px;margin:5px;border-radius:12px;max-width:75%;}
 .me{background:#00ff88;color:black;align-self:flex-end;}
@@ -23,10 +23,7 @@ body{margin:0;background:#000;color:#00ff88;font-family:Arial;}
 .nomeGrupo{color:red;font-size:12px;}
 .time{font-size:10px;opacity:.6;text-align:right;}
 .chat-input{display:flex;gap:5px;padding:10px;}
-.chat-input input{flex:1;padding:10px;border:none;border-radius:20px;background:#111;color:#0f0;}
-.file-btn{width:40px;height:40px;background:#111;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-#img{display:none;}
-.send-btn{width:45px;height:45px;background:#00ff88;border:none;border-radius:50%;}
+.chat-input input{flex:1;padding:10px;border-radius:20px;background:#111;color:#0f0;border:none;}
 button{background:#00ff88;color:black;border:none;padding:10px;border-radius:10px;}
 </style>
 </head>
@@ -51,12 +48,12 @@ let contatoAtual = "";
 
 // 🔔 NOTIFICAÇÃO
 function ativarNotificacao(){
-Notification.requestPermission().then(permission=>{
-if(permission==="granted"){
+Notification.requestPermission().then(p=>{
+if(p==="granted"){
 messaging.getToken({
 vapidKey:"COLOQUE_SUA_VAPID_KEY_AQUI"
-}).then(token=>{
-db.ref("tokens/"+user).set(token);
+}).then(t=>{
+db.ref("tokens/"+user).set(t);
 });
 }
 });
@@ -144,7 +141,7 @@ add(user,id);
 alert("Grupo criado!\nID: "+id);
 }
 
-// ENTRAR NO GRUPO
+// ENTRAR GRUPO
 function entrarGrupo(){
 let id = prompt("Digite o ID do grupo:");
 
@@ -159,8 +156,7 @@ alert("Grupo não existe");
 return;
 }
 
-let grupo = snap.val();
-let membros = grupo.membros || [];
+let membros = snap.val().membros || [];
 
 if(!membros.includes(user)){
 membros.push(user);
@@ -173,7 +169,7 @@ alert("Entrou no grupo!");
 });
 }
 
-// SAIR DO GRUPO
+// SAIR
 function sairGrupo(id){
 db.ref("grupos/"+id+"/membros").once("value",snap=>{
 let m=snap.val()||[];
@@ -197,27 +193,28 @@ renderLista(snap.val()||[]);
 });
 }
 
+// 🔥 CORRIGIDO (SEM BUG)
 function renderLista(lista){
-let html="";
+let container = document.getElementById("lista");
+container.innerHTML = "";
+
 lista.forEach(c=>{
-let isGrupo=c.startsWith("grupo_");
+let isGrupo = c.startsWith("grupo_");
 
 if(isGrupo){
 db.ref("grupos/"+c).once("value",snap=>{
-let nome=snap.val()?.nome||"Grupo";
+let nome = snap.val()?.nome || "Grupo";
 
-html+=`
+container.innerHTML += `
 <div class="contato" onclick="abrirChat('${c}')">
 <div style="color:#00aaff">👥 ${nome}</div>
 </div>`;
-document.getElementById("lista").innerHTML=html;
 });
 }else{
-html+=`
+container.innerHTML += `
 <div class="contato" onclick="abrirChat('${c}')">
 <div>👤 ${c}</div>
 </div>`;
-document.getElementById("lista").innerHTML=html;
 }
 });
 }
@@ -238,9 +235,8 @@ ${isGrupo?`<button onclick="sairGrupo('${nome}')">Sair</button>`:""}
 <div id="msgs" class="chat-box"></div>
 
 <div class="chat-input">
-<label class="file-btn">📎<input type="file" id="img"></label>
 <input id="msg" placeholder="Mensagem">
-<button class="send-btn" onclick="enviar()">➤</button>
+<button onclick="enviar()">➤</button>
 </div>
 `;
 
@@ -262,7 +258,6 @@ html+=`
 <div class="msg ${m.de===user?'me':'other'}">
 ${isGrupo?`<div class="nomeGrupo">${m.de}</div>`:""}
 ${m.texto||""}
-${m.img?`<img src="${m.img}">`:""}
 <div class="time">${hora}</div>
 </div>`;
 });
@@ -286,28 +281,6 @@ de:user,
 texto,
 time:Date.now()
 });
-
-// NOTIFICAÇÃO (simples)
-if(!isGrupo){
-db.ref("tokens/"+contatoAtual).once("value",snap=>{
-let token=snap.val();
-
-fetch("https://fcm.googleapis.com/fcm/send",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"key=SUA_SERVER_KEY"
-},
-body:JSON.stringify({
-to:token,
-notification:{
-title:user,
-body:texto
-}
-})
-});
-});
-}
 
 document.getElementById("msg").value="";
 }
