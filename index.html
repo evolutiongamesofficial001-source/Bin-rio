@@ -1,420 +1,2253 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PI Chat</title>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<style>
-*{box-sizing:border-box;}
-
-body{
-margin:0;
-background:#000;
-color:#00ff88;
-font-family:Arial;
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>BAM BEAT! — o ritmo das onomatopeias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style data-file="style.css">
+/* =====================================================================
+   BAM BEAT! — style.css
+   Visual de gibi: contornos grossos, letras de onomatopeia, cores vivas.
+   O jogo inteiro vive num palco fixo de 960x540 que é escalado por JS.
+   ===================================================================== */
+:root {
+  --ink: #1a1030;
+  --font: 'Bangers', 'Luckiest Guy', Impact, 'Arial Black', sans-serif;
+  --c-cpu: #ffd23f;
+  --c-player: #35e0ff;
+  --pink: #ff4fd8;
+  --lime: #9bff4f;
+  --orange: #ff9a3d;
 }
 
-/* APP */
-#app{
-height:100vh;
-display:flex;
-flex-direction:column;
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #05030f; color: #fff;
+  font-family: var(--font);
+  user-select: none; -webkit-user-select: none;
+}
+.hidden { display: none !important; }
+
+#app {
+  position: absolute; left: 50%; top: 50%;
+  width: 960px; height: 540px;
+  transform-origin: 50% 50%;
+  overflow: hidden; border-radius: 14px;
+  box-shadow: 0 0 70px rgba(120, 70, 255, .35);
+  background: #0b0620;
 }
 
-/* HEADER */
-.header{
-padding:14px;
-border-bottom:1px solid rgba(0,255,136,.2);
-display:flex;
-justify-content:space-between;
-align-items:center;
-background:rgba(0,0,0,.8);
-backdrop-filter:blur(8px);
-font-weight:bold;
-letter-spacing:.5px;
+/* ============================ PALCO ============================ */
+#stage { position: absolute; inset: 0; --beat: .6s; }
+#bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; background: #1b1038; }
+#bg span {
+  position: absolute; color: #fff; opacity: .07; white-space: nowrap;
+  animation: bgpulse var(--beat) ease-in-out infinite alternate;
+}
+@keyframes bgpulse {
+  from { transform: scale(1) rotate(var(--r)); }
+  to   { transform: scale(1.12) rotate(var(--r)); }
 }
 
-/* LISTA */
-.lista{
-flex:1;
-overflow:auto;
+#chars { position: absolute; left: 304px; top: 120px; width: 352px; height: 350px; z-index: 1;
+  display: flex; justify-content: space-around; align-items: flex-end; }
+#chars .slot { width: 170px; display: flex; justify-content: center; }
+
+#canvas { position: absolute; left: 0; top: 0; width: 960px; height: 540px; z-index: 2; touch-action: none; }
+#fx { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+#banner, #count { position: absolute; pointer-events: none; z-index: 4; text-align: center; }
+
+#stage.shake { animation: shake .38s; }
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-9px, 5px) rotate(-.4deg); }
+  40% { transform: translate(8px, -6px) rotate(.4deg); }
+  60% { transform: translate(-6px, 4px); }
+  80% { transform: translate(5px, -3px); }
 }
 
-.contato{
-padding:14px;
-border-bottom:1px solid rgba(0,255,136,.08);
-cursor:pointer;
-transition:.2s;
-border-radius:8px;
-margin:4px 8px;
+#stage.bam::after {
+  content: ""; position: absolute; inset: 0; z-index: 7; pointer-events: none;
+  border: 7px solid; border-image: linear-gradient(90deg, #ff4fd8, #ffd23f, #35e0ff, #9bff4f, #ff4fd8) 1;
+  animation: bamglow .45s linear infinite alternate;
+}
+@keyframes bamglow { from { opacity: .45; } to { opacity: 1; } }
+
+#btn-pause {
+  position: absolute; left: 8px; top: 8px; z-index: 6;
+  width: 30px; height: 30px; border-radius: 8px;
+  font-family: var(--font); font-size: 16px; letter-spacing: 1px;
+  background: rgba(0, 0, 0, .55); color: #fff; border: 3px solid var(--ink); cursor: pointer;
 }
 
-.contato:hover{
-background:rgba(0,255,136,.06);
-transform:scale(1.01);
+/* banners e contagem */
+#banner { left: 0; right: 0; top: 112px; opacity: 0; }
+#banner b {
+  display: block; font-size: 54px; font-weight: normal; letter-spacing: 2px; color: #fff;
+  text-shadow: -3px -3px 0 var(--ink), 3px -3px 0 var(--ink), -3px 3px 0 var(--ink), 3px 3px 0 var(--ink), 0 6px 0 var(--ink);
+}
+#banner small {
+  display: inline-block; margin-top: 4px; padding: 3px 14px; font-size: 20px; letter-spacing: 1px;
+  background: var(--ink); border-radius: 12px; color: #fff;
+}
+#banner.cpu b { color: var(--c-cpu); }
+#banner.player b { color: var(--c-player); }
+#banner.bam b { color: var(--pink); }
+#banner.show { animation: bannerin 1.9s ease-out forwards; }
+@keyframes bannerin {
+  0% { opacity: 0; transform: scale(.4) rotate(-6deg); }
+  12% { opacity: 1; transform: scale(1.18) rotate(2deg); }
+  22% { transform: scale(1) rotate(0); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px); }
 }
 
-.contato small{
-display:block;
-opacity:.6;
-font-size:12px;
-margin-top:4px;
+#count { left: 0; right: 0; top: 190px; font-size: 150px; opacity: 0; color: #fff;
+  text-shadow: -4px -4px 0 var(--ink), 4px -4px 0 var(--ink), -4px 4px 0 var(--ink), 4px 4px 0 var(--ink), 0 9px 0 var(--ink); }
+#count.show { animation: countin .5s ease-out forwards; }
+@keyframes countin {
+  0% { opacity: 0; transform: scale(2.2) rotate(-8deg); }
+  35% { opacity: 1; transform: scale(1) rotate(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(.8); }
 }
 
-/* CHAT */
-.chat-box{
-flex:1;
-overflow:auto;
-padding:10px;
-display:flex;
-flex-direction:column;
+/* julgamento de cada acerto: PERFECT / GOOD / OK / BAD / MISS */
+.jpop {
+  position: absolute; font-size: 34px; white-space: nowrap; letter-spacing: 1px; line-height: 1; text-align: center;
+  transform: translate(-50%, -50%); animation: jpop .7s ease-out forwards;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink), 0 4px 0 var(--ink);
+}
+.jpop small {
+  display: block; margin-top: 3px; font-size: 15px; letter-spacing: 1.5px; opacity: .95;
+  text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink);
+}
+.j-perfect {
+  color: #ffe84a; font-size: 44px; animation-duration: .85s;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink), 0 4px 0 var(--ink), 0 0 18px rgba(255, 232, 74, .95);
+}
+.j-good { color: #7dffb2; font-size: 36px; }
+.j-ok { color: #7fd0ff; font-size: 31px; }
+.j-bad { color: #ffb36b; font-size: 27px; }
+.j-miss { color: #ff5d6c; font-size: 35px; }
+.j-dodge { color: #9be7ff; font-size: 28px; }
+.j-eco { color: #d6b8ff; font-size: 24px; }
+.j-bomb { color: #ff4a4a; font-size: 46px; }
+.j-combo { color: var(--orange); font-size: 44px; }
+@keyframes jpop {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(.4) rotate(-8deg); }
+  22% { opacity: 1; transform: translate(-50%, -62%) scale(1.25) rotate(4deg); }
+  100% { opacity: 0; transform: translate(-50%, -105%) scale(1) rotate(-3deg); }
 }
 
-/* MENSAGENS */
-.msg{
-padding:10px;
-margin:6px;
-border-radius:14px;
-max-width:75%;
-animation:fade .2s ease;
+/* ======================== PERSONAGENS ======================== */
+.char { position: relative; width: 150px; height: 175px; --beat: .6s; opacity: .82; transition: opacity .2s; }
+.char.active { opacity: 1; }
+.char-bob { position: absolute; inset: 0; animation: bob var(--beat) ease-in-out infinite alternate; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-9px); } }
+
+.char-body {
+  position: absolute; left: 5px; top: 10px; width: 140px; height: 140px;
+  transform-origin: 50% 90%; transition: transform .09s ease-out;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, .35));
+}
+.char.active .char-body { filter: drop-shadow(0 0 16px var(--c1)) drop-shadow(0 6px 0 rgba(0, 0, 0, .35)); }
+.char-body::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; border-radius: 50%;
+  background: linear-gradient(160deg, var(--c1), var(--c2));
+  box-shadow: inset 0 0 0 5px var(--ink), inset 0 -14px 0 rgba(0, 0, 0, .12);
+}
+.char-deco, .char-face, .char-word { position: absolute; z-index: 1; }
+.char-deco { inset: 0; pointer-events: none; }
+
+.char-face { left: 0; right: 0; top: 34px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.eyes { display: flex; gap: 14px; }
+.eye { width: 30px; height: 34px; background: #fff; border-radius: 50%; position: relative; overflow: hidden; border: 3px solid var(--ink); }
+.eye i { position: absolute; left: 7px; top: 10px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); transition: transform .08s; }
+.mouth { width: 26px; height: 10px; border: 3px solid var(--ink); border-top: none; border-radius: 0 0 20px 20px; transition: all .08s; }
+
+.char-word {
+  left: 0; right: 0; bottom: 14px; text-align: center; font-size: 26px; letter-spacing: 1px; color: #fff; white-space: nowrap;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink), 0 4px 0 var(--ink);
+}
+.char-word span { display: inline-block; animation: wob .6s ease-in-out infinite alternate; animation-delay: calc(var(--i, 0) * -.09s); }
+@keyframes wob { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-4px) rotate(4deg); } }
+
+.char-shadow { position: absolute; left: 20px; right: 20px; bottom: 0; height: 14px; border-radius: 50%; background: rgba(0, 0, 0, .35); filter: blur(2px); }
+.char-pops { position: absolute; left: 0; right: 0; top: -6px; height: 0; pointer-events: none; }
+.pop {
+  position: absolute; font-size: 28px; white-space: nowrap; animation: popup .75s ease-out forwards;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink), 0 3px 0 var(--ink);
+}
+.pop.l0 { color: #ff4fd8; } .pop.l1 { color: #35e0ff; } .pop.l2 { color: #9bff4f; } .pop.l3 { color: #ff9a3d; }
+.pop.miss { color: #ff5d6c; } .pop.bam { color: #ffd23f; font-size: 38px; }
+@keyframes popup {
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(.5) rotate(-6deg); }
+  20% { opacity: 1; transform: translate(-50%, -14px) scale(1.2) rotate(4deg); }
+  100% { opacity: 0; transform: translate(-50%, -78px) scale(1) rotate(-2deg); }
 }
 
-@keyframes fade{
-from{opacity:0;transform:translateY(6px);}
-to{opacity:1;transform:translateY(0);}
+/* poses de canto: esquerda, baixo, cima, direita */
+.char[data-pose="0"] .char-body { transform: translateX(-14px) rotate(-10deg) scale(1.04); }
+.char[data-pose="1"] .char-body { transform: translateY(12px) scale(1.08, .88); }
+.char[data-pose="2"] .char-body { transform: translateY(-20px) scale(.94, 1.1); }
+.char[data-pose="3"] .char-body { transform: translateX(14px) rotate(10deg) scale(1.04); }
+.char[data-pose="0"] .eye i { transform: translateX(-6px); }
+.char[data-pose="1"] .eye i { transform: translateY(5px); }
+.char[data-pose="2"] .eye i { transform: translateY(-6px); }
+.char[data-pose="3"] .eye i { transform: translateX(6px); }
+.char[data-pose="0"] .mouth, .char[data-pose="1"] .mouth, .char[data-pose="2"] .mouth, .char[data-pose="3"] .mouth {
+  width: 30px; height: 24px; border: 3px solid var(--ink); border-radius: 50%; background: #5a1030;
+}
+.char[data-pose="miss"] .char-body { animation: missshake .38s; filter: grayscale(.7) drop-shadow(0 6px 0 rgba(0, 0, 0, .35)); }
+.char[data-pose="miss"] .mouth { border-radius: 20px 20px 0 0; border: 3px solid var(--ink); border-bottom: none; height: 10px; transform: translateY(8px); }
+.char[data-pose="miss"] .eye i { transform: translateY(6px); }
+@keyframes missshake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-10px) rotate(-6deg); }
+  50% { transform: translateX(9px) rotate(5deg); }
+  75% { transform: translateX(-6px) rotate(-3deg); }
+}
+.char[data-pose="win"] .char-bob { animation: cheer .45s ease-in-out infinite alternate; }
+@keyframes cheer { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-26px) rotate(6deg); } }
+.char[data-pose="lose"] .char-bob { animation: none; }
+.char[data-pose="lose"] .char-body { transform: translateY(20px) rotate(24deg) scale(.95); filter: grayscale(1); }
+.char[data-pose="win"] .mouth, .char[data-pose="lose"] .mouth { width: 30px; height: 20px; border-radius: 0 0 30px 30px; background: #5a1030; }
+
+/* --- PLIM (jogador): bolha com boné --- */
+.char-hero .char-deco::before {
+  content: ""; position: absolute; left: 26px; top: -6px; width: 88px; height: 36px;
+  background: var(--pink); border: 4px solid var(--ink); border-radius: 50px 50px 8px 8px;
+}
+.char-hero .char-deco::after {
+  content: ""; position: absolute; left: 66px; top: 20px; width: 70px; height: 14px;
+  background: #d93bb5; border: 4px solid var(--ink); border-radius: 0 14px 14px 0;
+}
+.char-hero .char-face { top: 40px; }
+
+/* --- TIC-TAC: despertador --- */
+.char-clock .char-body::before {
+  background: radial-gradient(circle, #fff7d1 0 60%, var(--c1) 61% 100%);
+}
+.char-clock .char-body::after {
+  content: ""; position: absolute; inset: 11px; border-radius: 50%; z-index: 0;
+  border: 4px dotted rgba(26, 16, 48, .5);
+}
+.char-clock .char-deco::before, .char-clock .char-deco::after {
+  content: ""; position: absolute; top: -12px; width: 44px; height: 30px; z-index: -1;
+  background: var(--c2); border: 4px solid var(--ink); border-radius: 40px 40px 0 0;
+}
+.char-clock .char-deco::before { left: -4px; transform: rotate(-28deg); }
+.char-clock .char-deco::after { right: -4px; transform: rotate(28deg); }
+.char-clock .char-word { color: #fff; }
+
+/* --- ZZZ: nuvem sonolenta --- */
+.char-cloud .char-body::before { border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; }
+.char-cloud .char-deco::before, .char-cloud .char-deco::after {
+  content: ""; position: absolute; top: 24px; width: 58px; height: 58px; border-radius: 50%;
+  background: var(--c1); box-shadow: inset 0 0 0 5px var(--ink); z-index: -1;
+}
+.char-cloud .char-deco::before { left: -14px; }
+.char-cloud .char-deco::after { right: -14px; }
+.char-cloud .eye { height: 20px; border-radius: 50% 50% 60% 60%; }
+.char-cloud .eye i { top: 4px; }
+.zz { position: absolute; font-style: normal; font-size: 26px; color: #fff; opacity: 0; right: 10px; top: -4px;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink);
+  animation: zfloat 2.4s linear infinite; }
+.zz.z2 { animation-delay: .8s; font-size: 20px; }
+.zz.z3 { animation-delay: 1.6s; font-size: 30px; }
+@keyframes zfloat {
+  0% { opacity: 0; transform: translate(0, 10px) rotate(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(26px, -60px) rotate(18deg); }
 }
 
-.me{
-background:linear-gradient(135deg,#00ff88,#00cc6a);
-color:#000;
-align-self:flex-end;
-box-shadow:0 0 8px rgba(0,255,136,.4);
+/* --- BZZT: robô --- */
+.char-robot .char-body::before { border-radius: 22px; box-shadow: inset 0 0 0 6px var(--ink), inset 0 -14px 0 rgba(0, 0, 0, .12); }
+.char-robot .eye { border-radius: 6px; background: #eaffff; }
+.char-robot .eye i { border-radius: 2px; background: #00a37a; }
+.char-robot .mouth {
+  width: 44px; height: 14px; border-radius: 3px; border: 3px solid var(--ink);
+  background: repeating-linear-gradient(90deg, var(--ink) 0 3px, #dfffee 3px 8px);
+}
+.char-robot[data-pose="0"] .mouth, .char-robot[data-pose="1"] .mouth, .char-robot[data-pose="2"] .mouth, .char-robot[data-pose="3"] .mouth {
+  width: 44px; height: 20px; border-radius: 3px;
+}
+.char-robot .char-deco::before {
+  content: ""; position: absolute; left: 67px; top: -26px; width: 6px; height: 26px; background: var(--ink);
+}
+.char-robot .char-deco::after {
+  content: ""; position: absolute; left: 59px; top: -40px; width: 22px; height: 22px; border-radius: 50%;
+  background: #ff4a4a; border: 4px solid var(--ink); animation: blink .8s steps(2) infinite;
+}
+@keyframes blink { 50% { background: #7a1c1c; } }
+
+/* --- BOOM: bomba --- */
+.char-bomb .char-body::before {
+  background: radial-gradient(circle at 35% 30%, #5b5b78, #1c1c2c 62%);
+  box-shadow: inset 0 0 0 6px var(--c1), 0 0 22px rgba(255, 107, 74, .55);
+}
+.char-bomb .char-word { color: var(--c1); }
+.char-bomb .eye { background: #fff3d6; }
+.char-bomb .char-deco::before {
+  content: ""; position: absolute; left: 70px; top: -26px; width: 8px; height: 32px;
+  background: #b08a4a; border: 3px solid var(--ink); border-radius: 4px; transform: rotate(22deg);
+}
+.char-bomb .char-deco::after {
+  content: "✸"; position: absolute; left: 82px; top: -44px; font-size: 30px; color: #ffd23f;
+  animation: spark .25s steps(2) infinite;
+}
+@keyframes spark { 50% { transform: scale(1.25) rotate(40deg); color: #ff8a3d; } }
+
+/* --- CRASH: explosão em estrela --- */
+.char-star .char-body { left: -4px; top: 0; width: 158px; height: 158px; }
+.char-star .char-body::before {
+  border-radius: 0; box-shadow: none;
+  clip-path: polygon(50% 0%, 61% 18%, 80% 8%, 78% 30%, 100% 35%, 85% 52%, 100% 70%, 78% 72%, 80% 95%, 61% 85%, 50% 100%, 39% 85%, 20% 95%, 22% 72%, 0% 70%, 15% 52%, 0% 35%, 22% 30%, 20% 8%, 39% 18%);
+}
+.char-star .char-face { top: 46px; }
+.char-star .char-word { bottom: 28px; font-size: 24px; }
+
+/* --- TOC-TOC: porta --- */
+.char-door .char-body::before { border-radius: 70px 70px 14px 14px; }
+.char-door .char-body::after {
+  content: ""; position: absolute; right: 12px; top: 64px; width: 16px; height: 16px; z-index: 1;
+  border-radius: 50%; background: #ffd23f; border: 3px solid var(--ink);
+}
+.char-door .eye i { background: #3a2410; }
+
+/* --- POP: pipoca --- */
+.char-corn .char-body::before {
+  border-radius: 46% 46% 30% 30% / 52% 52% 30% 30%;
+  background: radial-gradient(circle at 35% 30%, #fffbe0, var(--c1) 58%, var(--c2));
+}
+.char-corn .char-body::after {
+  content: ""; position: absolute; left: 44px; top: -22px; width: 58px; height: 58px; z-index: -1;
+  border-radius: 50%; background: #fffbe0; box-shadow: inset 0 0 0 5px var(--ink);
+}
+.char-corn .char-deco::before, .char-corn .char-deco::after {
+  content: ""; position: absolute; top: -12px; width: 54px; height: 54px; border-radius: 50%; z-index: -1;
+  background: #fffbe0; box-shadow: inset 0 0 0 5px var(--ink);
+}
+.char-corn .char-deco::before { left: 2px; }
+.char-corn .char-deco::after { right: 2px; }
+
+/* --- VRUM: carrinho --- */
+.char-car .char-body::before { border-radius: 40px 40px 20px 20px; }
+.char-car .char-body::after {
+  content: ""; position: absolute; left: 5px; right: 5px; top: 80px; height: 9px; z-index: 0;
+  background: rgba(255, 255, 255, .55);
+}
+.char-car .char-deco::before, .char-car .char-deco::after {
+  content: ""; position: absolute; bottom: -12px; width: 42px; height: 42px; border-radius: 50%;
+  background: radial-gradient(circle, #cfcfd8 0 22%, #2a2a38 24%); border: 4px solid var(--ink);
+}
+.char-car .char-deco::before { left: 8px; }
+.char-car .char-deco::after { right: 8px; }
+
+/* --- BIG BANG: chefão --- */
+.char-boss { transform: scale(1.16); transform-origin: 50% 100%; }
+.char-boss .char-body { left: -8px; top: 2px; width: 166px; height: 158px; }
+.char-boss .char-body::before {
+  border-radius: 34% 34% 42% 42%;
+  background: conic-gradient(from 20deg, #ff4fd8, #ffd23f, #35e0ff, #9bff4f, #ff4fd8);
+  animation: hue 3s linear infinite;
+}
+@keyframes hue { to { filter: hue-rotate(360deg); } }
+.char-boss .char-face { top: 40px; }
+.char-boss .char-word { font-size: 28px; bottom: 16px; }
+.char-boss .char-deco::before {
+  content: ""; position: absolute; left: 40px; top: -30px; width: 86px; height: 40px;
+  background: #ffd23f; border: none;
+  clip-path: polygon(0 100%, 0 25%, 25% 62%, 50% 0, 75% 62%, 100% 25%, 100% 100%);
 }
 
-.other{
-background:#111;
-border:1px solid rgba(0,255,136,.1);
+/* ============================ TELAS ============================ */
+.screen {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(52, 22, 110, .92), rgba(8, 4, 24, .96));
+}
+.screen h2 {
+  font-size: 46px; font-weight: normal; letter-spacing: 3px; color: var(--c-cpu);
+  text-shadow: -3px -3px 0 var(--ink), 3px -3px 0 var(--ink), -3px 3px 0 var(--ink), 3px 3px 0 var(--ink), 0 6px 0 var(--ink);
+}
+.tagline { font-size: 24px; letter-spacing: 1px; color: #d9ccff; }
+.foot { position: absolute; bottom: 14px; font-size: 18px; letter-spacing: 1px; color: #9c8fd0; }
+
+.logo { display: flex; font-size: 112px; font-weight: normal; line-height: 1; margin-top: -10px; }
+.logo span {
+  display: inline-block; letter-spacing: 2px;
+  text-shadow: -4px -4px 0 var(--ink), 4px -4px 0 var(--ink), -4px 4px 0 var(--ink), 4px 4px 0 var(--ink), 0 9px 0 var(--ink);
+  animation: logobounce 1.2s ease-in-out infinite alternate;
+}
+.logo .gap { width: 30px; }
+.logo span:nth-child(1) { color: #ff4fd8; animation-delay: 0s; }
+.logo span:nth-child(2) { color: #ffd23f; animation-delay: .1s; }
+.logo span:nth-child(3) { color: #35e0ff; animation-delay: .2s; }
+.logo span:nth-child(5) { color: #9bff4f; animation-delay: .3s; }
+.logo span:nth-child(6) { color: #ff9a3d; animation-delay: .4s; }
+.logo span:nth-child(7) { color: #ff4fd8; animation-delay: .5s; }
+.logo span:nth-child(8) { color: #ffd23f; animation-delay: .6s; }
+.logo span:nth-child(9) { color: #35e0ff; animation-delay: .7s; }
+@keyframes logobounce {
+  from { transform: translateY(0) rotate(-3deg); }
+  to { transform: translateY(-14px) rotate(3deg); }
 }
 
-.nomeGrupo{
-color:#00aaff;
-font-size:11px;
-margin-bottom:3px;
+.btns { display: flex; gap: 14px; }
+.btns.col { flex-direction: column; align-items: center; }
+.btn {
+  font-family: var(--font); font-size: 28px; letter-spacing: 2px; color: var(--ink);
+  background: linear-gradient(#ffe36e, #ffb21c); border: 4px solid var(--ink); border-radius: 14px;
+  padding: 8px 30px; min-width: 210px; cursor: pointer; box-shadow: 0 6px 0 var(--ink);
+  transition: transform .08s;
+}
+.btn:hover { transform: translateY(-2px) rotate(-1deg); }
+.btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.btn.alt { background: linear-gradient(#8aefff, #35b6e8); }
+.btn.danger { background: linear-gradient(#ff9aa6, #ff4a62); }
+.btn.small { font-size: 22px; min-width: 0; padding: 5px 20px; }
+.btn:focus-visible, #btn-pause:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+
+/* seleção de músicas */
+.songs {
+  position: relative; display: grid; grid-template-columns: repeat(3, 280px); gap: 12px;
+  max-height: 356px; overflow-y: auto; padding: 4px 10px 8px 4px; scrollbar-width: thin; scrollbar-color: #ffb21c transparent;
+}
+.songs::-webkit-scrollbar { width: 10px; }
+.songs::-webkit-scrollbar-thumb { background: #ffb21c; border: 2px solid var(--ink); border-radius: 6px; }
+.card {
+  position: relative; display: flex; height: 168px; overflow: hidden; cursor: pointer;
+  border: 4px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink);
+  transition: transform .1s;
+}
+.card:hover { transform: translateY(-3px) rotate(-.6deg); }
+.card-char { position: relative; width: 104px; flex: none; }
+.card-char .char { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%) scale(.6); transform-origin: 50% 100%; opacity: 1; }
+.card-char .char-pops { display: none; }
+.card-info { flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 10px 8px 8px 0; min-width: 0; }
+.card-name { font-size: 22px; letter-spacing: 1px; line-height: 1; color: #fff;
+  text-shadow: -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink), 2px 2px 0 var(--ink); }
+.card-num { font-size: 13px; letter-spacing: 1.5px; color: #ffe36e; }
+.card-meta { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.card-stars { font-size: 14px; color: #ffd23f; letter-spacing: 1px; font-family: Arial, sans-serif; }
+.card-bpm { font-size: 15px; color: #fff; }
+.card.boss { border-color: #ffd23f; box-shadow: 0 0 0 3px var(--ink), 0 0 22px rgba(255, 210, 63, .75); }
+.card.cleared .card-num::after { content: ' ✔'; color: #9bff4f; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.card-tags span { font-size: 13px; background: var(--ink); border-radius: 8px; padding: 1px 7px; color: #ffe36e; }
+.card-best { margin-top: auto; font-size: 16px; color: #e9e1ff; }
+.card.locked { filter: grayscale(.85) brightness(.7); cursor: not-allowed; }
+.card .lock { display: none; }
+.card.locked .card-num::after { content: ' 🔒'; }
+
+/* ajuda */
+.help { display: flex; gap: 12px; width: 912px; }
+.help-col { flex: 1; background: rgba(0, 0, 0, .35); border: 3px solid var(--ink); border-radius: 16px; padding: 10px 14px; }
+.help h3 { font-size: 22px; font-weight: normal; color: var(--c-player); margin: 4px 0 6px; letter-spacing: 1px; }
+.help p { font-size: 16px; line-height: 1.22; letter-spacing: .5px; margin-bottom: 5px; color: #efe9ff; }
+.help b { font-weight: normal; color: #fff; }
+.c-eco { color: #d6b8ff !important; } .c-bam { color: var(--pink) !important; } .c-bomb { color: #ff6b6b !important; }
+.c-ghost { color: #b9d4ff !important; } .c-twist { color: var(--orange) !important; }
+.c-duelo { color: #ff8fc8 !important; } .c-rush { color: #ffe36e !important; } .c-zuum { color: #7dffe0 !important; }
+.c-perfect { color: #ffe84a !important; } .c-good { color: #7dffb2 !important; } .c-ok { color: #7fd0ff !important; }
+.c-bad { color: #ffb36b !important; } .c-miss { color: #ff5d6c !important; }
+
+/* opções */
+.opts { display: flex; flex-direction: column; gap: 18px; width: 460px; align-items: stretch; }
+.opts label { display: flex; flex-direction: column; gap: 6px; font-size: 24px; letter-spacing: 1px; }
+.opts output { color: var(--c-cpu); margin-left: 10px; }
+.opts input[type=range] { width: 100%; accent-color: #ffb21c; height: 24px; }
+.opts .hint { font-size: 18px; color: #bfb3ee; }
+.opts .btn { align-self: center; }
+
+/* resultados */
+.res-main { display: flex; align-items: center; gap: 36px; }
+.rank {
+  width: 190px; height: 190px; display: flex; align-items: center; justify-content: center;
+  font-size: 140px; line-height: 1; border: 6px solid var(--ink); border-radius: 50%;
+  background: #fff; color: var(--ink); box-shadow: 0 8px 0 var(--ink); transform: rotate(-6deg);
+  animation: rankpop .6s ease-out;
+}
+.rank.r-S { background: linear-gradient(135deg, #ffe36e, #ff4fd8); }
+.rank.r-A { background: #9bff4f; }
+.rank.r-B { background: #35e0ff; }
+.rank.r-C { background: #ffb21c; }
+.rank.r-D { background: #c8c2d8; }
+.rank.r-X { background: #ff4a62; color: #fff; }
+@keyframes rankpop { 0% { transform: scale(0) rotate(30deg); } 70% { transform: scale(1.15) rotate(-10deg); } 100% { transform: scale(1) rotate(-6deg); } }
+.res-stats { min-width: 340px; }
+#res-flavor { font-size: 24px; color: var(--c-cpu); margin-bottom: 8px; letter-spacing: 1px; }
+.res-stats table { border-collapse: collapse; font-size: 19px; letter-spacing: 1px; width: 100%; }
+.res-stats td { padding: 1px 0; border-bottom: 2px dashed rgba(255, 255, 255, .15); }
+.res-stats td:last-child { text-align: right; color: var(--c-player); }
+
+@media (prefers-reduced-motion: reduce) {
+  .logo span, #bg span, .char-bob, .char-word span, .zz { animation: none; }
 }
 
-.time{
-font-size:10px;
-opacity:.5;
-text-align:right;
-margin-top:4px;
-}
-
-/* INPUT */
-.chat-input{
-display:flex;
-gap:8px;
-padding:10px;
-background:#000;
-border-top:1px solid rgba(0,255,136,.1);
-}
-
-.chat-input input{
-flex:1;
-padding:12px;
-border-radius:20px;
-background:#111;
-color:#0f0;
-border:none;
-outline:none;
-transition:.2s;
-}
-
-.chat-input input:focus{
-background:#151515;
-box-shadow:0 0 6px rgba(0,255,136,.3);
-}
-
-/* BOTÃO */
-button{
-background:linear-gradient(135deg,#00ff88,#00cc6a);
-color:#000;
-border:none;
-padding:10px 14px;
-border-radius:10px;
-cursor:pointer;
-transition:.2s;
-font-weight:bold;
-}
-
-button:hover{
-transform:scale(1.05);
-box-shadow:0 0 10px rgba(0,255,136,.4);
-}
-
-button:active{
-transform:scale(.95);
-}
-
-/* SCROLL */
-::-webkit-scrollbar{
-width:5px;
-}
-::-webkit-scrollbar-thumb{
-background:#00ff88;
-border-radius:10px;
-}
+/* cores dos julgamentos na tela de resultados */
+.res-stats tr.t-perfect td:first-child { color: #ffe84a; } .res-stats tr.t-good td:first-child { color: #7dffb2; }
+.res-stats tr.t-ok td:first-child { color: #7fd0ff; } .res-stats tr.t-bad td:first-child { color: #ffb36b; }
+.res-stats tr.t-miss td:first-child { color: #ff5d6c; }
 </style>
 </head>
-
 <body>
-<div id="app"></div>
 
-<script>
+<div id="app">
 
-const firebaseConfig = {
- databaseURL:"https://piri-82dcf-default-rtdb.firebaseio.com/"
+  <!-- ====== PALCO DO JOGO ====== -->
+  <div id="stage">
+    <div id="bg"></div>
+    <div id="chars">
+      <div id="slot-enemy" class="slot"></div>
+      <div id="slot-player" class="slot"></div>
+    </div>
+    <canvas id="canvas" width="1920" height="1080"></canvas>
+    <div id="fx"></div>
+    <div id="banner"></div>
+    <div id="count"></div>
+    <button id="btn-pause" class="hidden" aria-label="Pausar">II</button>
+  </div>
+
+  <!-- ====== TÍTULO ====== -->
+  <section id="screen-title" class="screen">
+    <h1 class="logo" aria-label="BAM BEAT!">
+      <span>B</span><span>A</span><span>M</span><span class="gap"></span><span>B</span><span>E</span><span>A</span><span>T</span><span>!</span>
+    </h1>
+    <p class="tagline">O ritmo que faz POW, ZZZ e PLOFT.</p>
+    <div class="btns col">
+      <button class="btn" id="btn-play">JOGAR</button>
+      <button class="btn alt" id="btn-help">COMO JOGAR</button>
+      <button class="btn alt" id="btn-opts">OPÇÕES</button>
+    </div>
+    <p class="foot">Setas ou W A S D &nbsp;•&nbsp; Espaço ativa o BAM &nbsp;•&nbsp; Esc pausa</p>
+  </section>
+
+  <!-- ====== SELEÇÃO DE MÚSICA ====== -->
+  <section id="screen-select" class="screen hidden">
+    <h2>ESCOLHA O DUELO</h2>
+    <div id="songs" class="songs"></div>
+    <button class="btn small alt" id="btn-select-back">&larr; Voltar</button>
+  </section>
+
+  <!-- ====== COMO JOGAR ====== -->
+  <section id="screen-help" class="screen hidden">
+    <h2>COMO JOGAR</h2>
+    <div class="help">
+      <div class="help-col">
+        <h3>Controles</h3>
+        <p><b>← ↓ ↑ →</b> ou <b>A S W D</b> acertam as setas quando chegam no alvo.</p>
+        <p><b>Espaço</b> ativa o BAM. <b>Esc</b> ou <b>P</b> pausa. No celular, toque nas colunas.</p>
+        <h3>Turnos</h3>
+        <p>O CPU canta uma frase. Na sua vez, repita a mesma frase, na mesma ordem.</p>
+        <h3>Acertos</h3>
+        <p><b class="c-perfect">PERFECT</b> <b class="c-good">GOOD</b> <b class="c-ok">OK</b> <b class="c-bad">BAD</b> <b class="c-miss">MISS</b></p>
+        <p>Quanto mais perto do tempo certo, mais pontos e mais BAM.</p>
+      </div>
+      <div class="help-col">
+        <h3>Mecânicas</h3>
+        <p><b class="c-eco">ECO</b> Aperte junto com o CPU na vez dele para carregar o BAM.</p>
+        <p><b class="c-bam">BAM</b> Barra cheia + Espaço: pontos em dobro, bombas inofensivas e fantasmas visíveis.</p>
+        <p>Seu combo multiplica os pontos. Se a vida acabar, a fase termina.</p>
+      </div>
+      <div class="help-col">
+        <h3>Desafios</h3>
+        <p>Cada fase tem só um. O chefão usa todos juntos!</p>
+        <p><b class="c-bomb">PLOFT</b> Bomba preta: não aperte.</p>
+        <p><b class="c-ghost">ZZZ</b> Setas fantasma somem antes de chegar.</p>
+        <p><b class="c-twist">TWIST</b> Colunas invertidas: leia o desenho da seta.</p>
+        <p><b class="c-rush">RUSH</b> Notas extras além das do CPU.</p>
+        <p><b class="c-zuum">ZUUM</b> As setas descem bem mais rápido.</p>
+        <p><b class="c-duelo">DUELO</b> Turnos de 1 compasso.</p>
+      </div>
+    </div>
+    <button class="btn small alt" id="btn-help-back">&larr; Voltar</button>
+  </section>
+
+  <!-- ====== OPÇÕES ====== -->
+  <section id="screen-opts" class="screen hidden">
+    <h2>OPÇÕES</h2>
+    <div class="opts">
+      <label>Volume <output id="out-vol">80%</output>
+        <input type="range" id="opt-vol" min="0" max="100" value="80">
+      </label>
+      <label>Ajuste de sincronia <output id="out-off">0 ms</output>
+        <input type="range" id="opt-off" min="-150" max="150" step="5" value="0">
+      </label>
+      <p class="hint">Se as notas parecem chegar cedo ou tarde demais, mexa no ajuste de sincronia.</p>
+      <button class="btn small danger" id="btn-reset">Apagar progresso</button>
+    </div>
+    <button class="btn small alt" id="btn-opts-back">&larr; Voltar</button>
+  </section>
+
+  <!-- ====== PAUSA ====== -->
+  <section id="screen-pause" class="screen hidden">
+    <h2>PAUSA</h2>
+    <p class="tagline">ZZZ... o jogo está dormindo.</p>
+    <div class="btns col">
+      <button class="btn" id="pause-resume">CONTINUAR</button>
+      <button class="btn alt" id="pause-restart">REINICIAR</button>
+      <button class="btn alt" id="pause-menu">SAIR PARA O MENU</button>
+    </div>
+  </section>
+
+  <!-- ====== RESULTADOS ====== -->
+  <section id="screen-results" class="screen hidden">
+    <h2 id="res-title">VITÓRIA!</h2>
+    <div class="res-main">
+      <div id="res-rank" class="rank">S</div>
+      <div class="res-stats">
+        <p id="res-flavor"></p>
+        <table>
+          <tr><td>Pontos</td><td id="res-score">0</td></tr>
+          <tr><td>Precisão</td><td id="res-acc">0%</td></tr>
+          <tr><td>Maior combo</td><td id="res-combo">0</td></tr>
+          <tr class="t-perfect"><td>PERFECT</td><td id="res-perfect">0</td></tr>
+          <tr class="t-good"><td>GOOD</td><td id="res-good">0</td></tr>
+          <tr class="t-ok"><td>OK</td><td id="res-ok">0</td></tr>
+          <tr class="t-bad"><td>BAD</td><td id="res-bad">0</td></tr>
+          <tr class="t-miss"><td>MISS</td><td id="res-miss">0</td></tr>
+          <tr><td>PLOFT (bombas)</td><td id="res-bombs">0</td></tr>
+          <tr><td>ECOs</td><td id="res-eco">0</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="res-next">PRÓXIMA</button>
+      <button class="btn alt" id="res-retry">DE NOVO</button>
+      <button class="btn alt" id="res-menu">MENU</button>
+    </div>
+  </section>
+
+</div>
+
+<script data-file="audio.js">
+/* =====================================================================
+   BAM BEAT! — audio.js
+   Todo o som é sintetizado com WebAudio. Não precisa de nenhum arquivo.
+   - Música: bateria, baixo, acordes e melodia gerados por padrões
+   - Vozes: cada personagem "canta" sua onomatopeia em notas do acorde
+   - Efeitos: erro, bomba, eco, BAM, vitória, derrota
+   ===================================================================== */
+const BamAudio = (() => {
+  let ctx = null, master = null, musicBus = null, sfxBus = null, noiseBuf = null;
+  let songBus = null, timer = null, music = null;
+  let volume = 0.8;
+
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  // nota MIDI de um grau da escala da música (aceita graus acima de 7)
+  const noteOf = (S, d) => S.root + S.scale[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+
+  function init() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC();
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16; comp.knee.value = 20; comp.ratio.value = 5;
+    master = ctx.createGain(); master.gain.value = volume;
+    musicBus = ctx.createGain(); musicBus.gain.value = 0.55;
+    sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9;
+    musicBus.connect(master); sfxBus.connect(master);
+    master.connect(comp); comp.connect(ctx.destination);
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+
+  const now = () => (ctx ? ctx.currentTime : 0);
+  const latency = () => (ctx ? (ctx.outputLatency || ctx.baseLatency || 0) : 0);
+
+  function setVolume(v) {
+    volume = v;
+    if (master) master.gain.value = v;
+  }
+
+  /* ---------- blocos básicos ---------- */
+  function tone(o) {
+    const { t, freq, dur, type = 'square', vol = 0.15, attack = 0.005, release = 0.08, slide = 0, cutoff = 0, bus } = o;
+    const out = bus || songBus || musicBus;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t + dur);
+    const a = Math.min(attack, dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + a);
+    g.gain.setValueAtTime(vol, t + dur);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
+    if (cutoff) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = cutoff;
+      osc.connect(f); f.connect(g);
+    } else {
+      osc.connect(g);
+    }
+    g.connect(out);
+    osc.start(t);
+    osc.stop(t + dur + release + 0.03);
+  }
+
+  function noise(o) {
+    const { t, dur, vol = 0.2, type = 'highpass', freq = 6000, q = 0.7, bus } = o;
+    const out = bus || songBus || musicBus;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(out);
+    src.start(t, Math.random() * 1);
+    src.stop(t + dur + 0.02);
+  }
+
+  /* ---------- instrumentos ---------- */
+  function kick(t) {
+    tone({ t, freq: 150, slide: 42, dur: 0.16, type: 'sine', vol: 0.9, attack: 0.002, release: 0.1 });
+    noise({ t, dur: 0.02, vol: 0.25, type: 'lowpass', freq: 3000 });
+  }
+  function snare(t) {
+    noise({ t, dur: 0.16, vol: 0.38, type: 'bandpass', freq: 1900, q: 0.6 });
+    tone({ t, freq: 200, slide: 110, dur: 0.09, type: 'triangle', vol: 0.3, release: 0.05 });
+  }
+  function hat(t, open) {
+    noise({ t, dur: open ? 0.2 : 0.045, vol: open ? 0.11 : 0.09, type: 'highpass', freq: 8000 });
+  }
+  function bass(t, midi, dur) {
+    const f = mtof(midi);
+    tone({ t, freq: f, dur, type: 'sawtooth', vol: 0.24, attack: 0.004, release: 0.06, cutoff: 520 });
+    tone({ t, freq: f, dur, type: 'sine', vol: 0.22, release: 0.06 });
+  }
+  function lead(t, midi, dur, wave) {
+    tone({ t, freq: mtof(midi), dur, type: wave, vol: 0.09, release: 0.1, cutoff: 3200 });
+  }
+  function pad(t, midis, dur) {
+    midis.forEach((m) => tone({ t, freq: mtof(m), dur, type: 'triangle', vol: 0.045, attack: 0.15, release: 0.3 }));
+  }
+
+  /* ---------- sequenciador ---------- */
+  function playStep(m, step, t) {
+    const S = m.song;
+    const bar = Math.floor(step / 16);
+    const s = step % 16;
+    const deg = S.prog[bar % S.prog.length];
+    const sd = m.stepDur;
+
+    const k = S.drums.kick[s], sn = S.drums.snare[s], h = S.drums.hat[s];
+    if (k === '1') kick(t);
+    if (sn === '1') snare(t);
+    if (h === '1') hat(t, false);
+    if (h === '2') hat(t, true);
+
+    const b = S.bass[s];
+    if (b !== '.') {
+      const off = { r: 0, f: 4, o: 7, t: 2 }[b] || 0;
+      bass(t, noteOf(S, deg + off) - 12, sd * 1.8);
+    }
+
+    if (s === 0) pad(t, [noteOf(S, deg), noteOf(S, deg + 2), noteOf(S, deg + 4)], sd * 15);
+
+    const l = S.lead[s];
+    if (l !== '.' && bar >= (S.leadFrom || 0)) {
+      const offs = [0, 2, 4, 7, 9, 11];
+      lead(t, noteOf(S, deg + offs[+l]) + 12, sd * 1.6, S.leadWave);
+    }
+  }
+
+  function schedule() {
+    const m = music;
+    if (!m) return;
+    const ahead = ctx.currentTime + 0.2;
+    while (m.next < m.total && m.T0 + m.next * m.stepDur < ahead) {
+      playStep(m, m.next, m.T0 + m.next * m.stepDur);
+      m.next++;
+    }
+  }
+
+  function startSong(song, T0, totalBars) {
+    stopSong();
+    const stepDur = 60 / song.bpm / 4;
+    songBus = ctx.createGain();
+    songBus.connect(musicBus);
+    music = { song, T0, stepDur, next: 0, total: totalBars * 16 };
+    const beat = stepDur * 4;
+    for (let k = 0; k < 4; k++) {
+      const t = T0 - (4 - k) * beat;
+      if (t > ctx.currentTime) tone({ t, freq: k === 3 ? 1320 : 880, dur: 0.06, type: 'square', vol: 0.1, bus: sfxBus });
+    }
+    timer = setInterval(schedule, 25);
+    schedule();
+  }
+
+  function stopSong() {
+    if (timer) { clearInterval(timer); timer = null; }
+    music = null;
+    if (songBus) {
+      const b = songBus;
+      songBus = null;
+      try {
+        b.gain.cancelScheduledValues(ctx.currentTime);
+        b.gain.setValueAtTime(b.gain.value, ctx.currentTime);
+        b.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.08);
+      } catch (e) { /* ignora */ }
+      setTimeout(() => { try { b.disconnect(); } catch (e) { /* ignora */ } }, 300);
+    }
+  }
+
+  function pause() { if (ctx) ctx.suspend(); }
+  function resume() { if (ctx) ctx.resume(); }
+
+  /* ---------- voz dos personagens ---------- */
+  // O personagem "canta" uma nota do acorde atual: esquerda = fundamental,
+  // baixo = terça, cima = quinta, direita = oitava. Cada um tem timbre próprio.
+  function voice(S, V, lane, bar, t, vol) {
+    if (!ctx) return;
+    t = Math.max(t || 0, ctx.currentTime);
+    vol = vol == null ? 1 : vol;
+    const deg = S.prog[bar % S.prog.length] + [0, 2, 4, 7][lane];
+    const f0 = mtof(noteOf(S, deg) + 12 + (V.shift || 0));
+    const len = V.len || 0.16;
+
+    const osc = ctx.createOscillator();
+    osc.type = V.wave;
+    osc.frequency.setValueAtTime(f0 * (V.scoop || 1), t);
+    osc.frequency.exponentialRampToValueAtTime(f0, t + 0.04);
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.Q.value = 3.5;
+    bp.frequency.setValueAtTime(V.formants[lane] * 0.7, t);
+    bp.frequency.linearRampToValueAtTime(V.formants[lane], t + 0.06);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.6 * vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+
+    osc.connect(bp); bp.connect(g); g.connect(sfxBus);
+    osc.start(t);
+    osc.stop(t + len + 0.03);
+  }
+
+  /* ---------- efeitos ---------- */
+  function sfx(name) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const B = sfxBus;
+    switch (name) {
+      case 'miss':
+        tone({ t, freq: 170, slide: 60, dur: 0.2, type: 'sawtooth', vol: 0.18, bus: B, cutoff: 900 });
+        break;
+      case 'bomb':
+        noise({ t, dur: 0.6, vol: 0.7, type: 'lowpass', freq: 1100, q: 0.5, bus: B });
+        tone({ t, freq: 130, slide: 35, dur: 0.5, type: 'sine', vol: 0.7, bus: B });
+        break;
+      case 'eco':
+        tone({ t, freq: 1500, slide: 2100, dur: 0.07, type: 'sine', vol: 0.1, bus: B });
+        break;
+      case 'dodge':
+        tone({ t, freq: 900, slide: 400, dur: 0.1, type: 'sine', vol: 0.1, bus: B });
+        break;
+      case 'turn':
+        tone({ t, freq: 660, dur: 0.05, type: 'square', vol: 0.06, bus: B });
+        tone({ t: t + 0.07, freq: 990, dur: 0.07, type: 'square', vol: 0.06, bus: B });
+        break;
+      case 'ready':
+        [72, 76, 79].forEach((m, i) => tone({ t: t + i * 0.06, freq: mtof(m), dur: 0.08, type: 'triangle', vol: 0.14, bus: B }));
+        break;
+      case 'bam':
+        tone({ t, freq: 200, slide: 1600, dur: 0.45, type: 'sawtooth', vol: 0.16, bus: B, cutoff: 2500 });
+        noise({ t, dur: 0.3, vol: 0.3, type: 'highpass', freq: 3000, bus: B });
+        [60, 64, 67, 72].forEach((m, i) => tone({ t: t + 0.4 + i * 0.03, freq: mtof(m), dur: 0.3, type: 'square', vol: 0.08, bus: B }));
+        break;
+      case 'bamoff':
+        tone({ t, freq: 1200, slide: 200, dur: 0.3, type: 'sawtooth', vol: 0.1, bus: B, cutoff: 2000 });
+        break;
+      case 'win':
+        [60, 64, 67, 72, 76, 79].forEach((m, i) => tone({ t: t + i * 0.11, freq: mtof(m), dur: 0.22, type: 'square', vol: 0.1, bus: B }));
+        break;
+      case 'lose':
+        [67, 64, 60, 55].forEach((m, i) => tone({ t: t + i * 0.2, freq: mtof(m), dur: 0.3, type: 'triangle', vol: 0.18, bus: B }));
+        noise({ t: t + 0.7, dur: 0.5, vol: 0.2, type: 'lowpass', freq: 600, bus: B });
+        break;
+      case 'click':
+        tone({ t, freq: 760, dur: 0.04, type: 'square', vol: 0.07, bus: B });
+        break;
+      default:
+        break;
+    }
+  }
+
+  return { init, now, latency, setVolume, startSong, stopSong, pause, resume, voice, sfx };
+})();
+</script>
+<script data-file="songs.js">
+/* =====================================================================
+   BAM BEAT! — songs.js
+   Cada música define o som (bpm, escala, bateria, baixo, melodia) e a
+   dificuldade (densidade de notas, velocidade, desafio da fase).
+
+   REGRA DAS FASES: cada fase tem no máximo UM desafio. O desafio de uma
+   fase só aparece nela e no chefão final (BIG BANG), que junta todos.
+
+     PLOFT  bombs    bombas pretas (não apertar)
+     ZZZ    ghost    setas fantasma que somem antes de chegar
+     TWIST  twist    colunas espelhadas
+     RUSH   extra    notas extras além das que o CPU cantou
+     ZUUM   pspeed   setas do jogador descem mais rápido
+     DUELO  quickFrom turnos de 1 compasso
+
+   Padrões de 16 passos (um compasso, cada passo = 1/16):
+     drums: '1' toca, '2' (só hat) = chimbal aberto, '.' silêncio
+     bass : r=fundamental, f=quinta, o=oitava, t=terça, '.'=silêncio
+     lead : 0..5 = nota do acorde (0 fund, 1 terça, 2 quinta, 3 oitava...)
+
+   Parâmetros de dificuldade:
+     density  chance de nota nos tempos (colcheias)
+     sync     fator para notas fora do tempo (semicolcheias)
+     minGap   distância mínima entre notas, em passos
+     extra    notas extras que só existem na vez do jogador
+     bombs    bombas PLOFT por compasso (jogador)
+     ghost    chance de nota fantasma
+     twist    chance de a vez do jogador ter colunas invertidas
+     pspeed   multiplicador da velocidade das setas do jogador
+     quickFrom a partir de que ponto da música os turnos viram 1 compasso
+   ===================================================================== */
+const MINOR = [0, 2, 3, 5, 7, 8, 10];
+const DORIAN = [0, 2, 3, 5, 7, 9, 10];
+const HARM = [0, 2, 3, 5, 7, 8, 11];
+const PHRYG = [0, 1, 3, 5, 7, 8, 10];
+const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const MIXO = [0, 2, 4, 5, 7, 9, 10];
+
+const SONGS = [
+  { // 1 — tutorial: só turnos, ECO e BAM
+    id: 'tictac', name: 'Tic-Tac Tango', enemy: 'tictac', stars: 1, bpm: 90, seed: 7101,
+    bg: ['#2a1055', '#6a2c91'], news: ['Turnos', 'Eco', 'BAM'],
+    root: 57, scale: MINOR, prog: [0, 5, 2, 6],
+    drums: { kick: '1...1...1...1...', snare: '....1.......1...', hat: '..1...1...1...1.' },
+    bass: 'r.....r.r.....f.', lead: '0...2...1...2...', leadWave: 'triangle', leadFrom: 2,
+    turnBars: 2, pairs: 7, quickFrom: null,
+    density: 0.5, sync: 0, minGap: 2, extra: 0, bombs: 0, ghost: 0, twist: 0, pspeed: 1,
+    speed: 330, missDmg: 4, bombDmg: 12
+  },
+  { // 2 — desafio: PLOFT
+    id: 'zzz', name: 'Zzz Soneca', enemy: 'zzz', stars: 2, bpm: 100, seed: 7202,
+    bg: ['#0f2a5c', '#3b57b5'], news: ['PLOFT (bombas)'],
+    root: 52, scale: MINOR, prog: [0, 3, 4, 3],
+    drums: { kick: '1.......1.......', snare: '........1.......', hat: '1.1.1.1.1.1.1.1.' },
+    bass: 'r.......f.......', lead: '0.1.2.1.0.1.2.4.', leadWave: 'triangle', leadFrom: 1,
+    turnBars: 2, pairs: 8, quickFrom: null,
+    density: 0.55, sync: 0.12, minGap: 2, extra: 0, bombs: 0.9, ghost: 0, twist: 0, pspeed: 1,
+    speed: 350, missDmg: 4.5, bombDmg: 12
+  },
+  { // 3 — só ritmo
+    id: 'toc', name: 'Toc-Toc Porta', enemy: 'toc', stars: 2, bpm: 106, seed: 7253,
+    bg: ['#3a2410', '#a8672a'], news: ['Só ritmo'],
+    root: 55, scale: DORIAN, prog: [0, 3, 0, 4],
+    drums: { kick: '1.....1...1.....', snare: '....1.......1...', hat: '..1...1...1...1.' },
+    bass: 'r.....r...r...f.', lead: '0...1...2...1...', leadWave: 'triangle', leadFrom: 1,
+    turnBars: 2, pairs: 8, quickFrom: null,
+    density: 0.58, sync: 0.2, minGap: 2, extra: 0, bombs: 0, ghost: 0, twist: 0, pspeed: 1,
+    speed: 375, missDmg: 4.8, bombDmg: 12
+  },
+  { // 4 — desafio: ZZZ (fantasmas)
+    id: 'bzzt', name: 'Bzzt Robô', enemy: 'bzzt', stars: 3, bpm: 112, seed: 7303,
+    bg: ['#06383a', '#1a8a6e'], news: ['ZZZ (notas fantasma)'],
+    root: 50, scale: DORIAN, prog: [0, 0, 3, 4],
+    drums: { kick: '1...1...1...1...', snare: '....1.......1...', hat: '1.2.1.2.1.2.1.2.' },
+    bass: 'r.r.o.r.r.r.o.r.', lead: '2.1.0.1.2.4.2.1.', leadWave: 'square', leadFrom: 1,
+    turnBars: 2, pairs: 9, quickFrom: null,
+    density: 0.6, sync: 0.22, minGap: 2, extra: 0, bombs: 0, ghost: 0.5, twist: 0, pspeed: 1,
+    speed: 400, missDmg: 5, bombDmg: 13
+  },
+  { // 5 — desafio: RUSH (notas extras)
+    id: 'pop', name: 'Pop Pipoca', enemy: 'pop', stars: 3, bpm: 118, seed: 7354,
+    bg: ['#5a3d00', '#e6a817'], news: ['RUSH (notas extras)'],
+    root: 53, scale: MAJOR, prog: [0, 4, 5, 3],
+    drums: { kick: '1...1...1..11...', snare: '....1.......1...', hat: '1.1.1.1.1.1.1.1.' },
+    bass: 'r...r...f...r.o.', lead: '0.2.4.2.0.2.4.2.', leadWave: 'square', leadFrom: 1,
+    turnBars: 2, pairs: 9, quickFrom: null,
+    density: 0.58, sync: 0.25, minGap: 2, extra: 0.3, bombs: 0, ghost: 0, twist: 0, pspeed: 1,
+    speed: 420, missDmg: 5.2, bombDmg: 13
+  },
+  { // 6 — desafio: TWIST
+    id: 'boom', name: 'Boom Bomba', enemy: 'boom', stars: 4, bpm: 124, seed: 7404,
+    bg: ['#4a1008', '#b8381a'], news: ['TWIST (colunas invertem)'],
+    root: 55, scale: HARM, prog: [0, 5, 6, 0],
+    drums: { kick: '1..1..1...1..1..', snare: '....1.......1...', hat: '1.1.1.1.1.1.1.11' },
+    bass: 'r..r..r.r..r..f.', lead: '0.2.4.2.0.2.4.5.', leadWave: 'sawtooth', leadFrom: 1,
+    turnBars: 2, pairs: 10, quickFrom: null,
+    density: 0.62, sync: 0.3, minGap: 1, extra: 0, bombs: 0, ghost: 0, twist: 1, pspeed: 1,
+    speed: 440, missDmg: 5.5, bombDmg: 14
+  },
+  { // 7 — desafio: ZUUM (setas aceleradas)
+    id: 'zap', name: 'Zap Raio', enemy: 'zap', stars: 4, bpm: 130, seed: 7455,
+    bg: ['#0b1a4a', '#1e4fd8'], news: ['ZUUM (setas aceleradas)'],
+    root: 50, scale: MIXO, prog: [0, 6, 5, 6],
+    drums: { kick: '1..1..1..1..1.1.', snare: '....1.......1...', hat: '1.1.1.1.1.1.1.1.' },
+    bass: 'r.r.o.r.r.r.o.rf', lead: '4.2.4.5.4.2.0.2.', leadWave: 'sawtooth', leadFrom: 1,
+    turnBars: 2, pairs: 11, quickFrom: null,
+    density: 0.62, sync: 0.3, minGap: 1, extra: 0, bombs: 0, ghost: 0, twist: 0, pspeed: 1.4,
+    speed: 420, missDmg: 5.8, bombDmg: 14
+  },
+  { // 8 — só ritmo, bem rápido
+    id: 'vrum', name: 'Vrum Turbo', enemy: 'vrum', stars: 5, bpm: 138, seed: 7506,
+    bg: ['#262626', '#c9a227'], news: ['Só ritmo (rápido!)'],
+    root: 48, scale: MINOR, prog: [0, 0, 5, 6],
+    drums: { kick: '1.1.1.1.1.1.1.1.', snare: '....1.......1...', hat: '1.1.1.1.1.1.1.11' },
+    bass: 'r.rr.rr.r.rr.rf.', lead: '0.2.3.5.4.3.2.0.', leadWave: 'sawtooth', leadFrom: 1,
+    turnBars: 2, pairs: 12, quickFrom: null,
+    density: 0.72, sync: 0.42, minGap: 1, extra: 0, bombs: 0, ghost: 0, twist: 0, pspeed: 1,
+    speed: 480, missDmg: 6.2, bombDmg: 15
+  },
+  { // 9 — desafio: DUELO (turnos de 1 compasso)
+    id: 'crash', name: 'Crash Total', enemy: 'crash', stars: 5, bpm: 142, seed: 7505,
+    bg: ['#4a0b3a', '#d0307f'], news: ['DUELO (1 compasso)'],
+    root: 57, scale: MINOR, prog: [0, 6, 5, 6],
+    drums: { kick: '1..1.1..1..1.1..', snare: '....1.......1.1.', hat: '1.1.1.1.1.1.1.2.' },
+    bass: 'r.r.r.rfr.r.r.rf', lead: '0.1.2.4.3.4.2.1.', leadWave: 'sawtooth', leadFrom: 1,
+    turnBars: 2, pairs: 14, quickFrom: 0.35,
+    density: 0.68, sync: 0.4, minGap: 1, extra: 0, bombs: 0, ghost: 0, twist: 0, pspeed: 1,
+    speed: 490, missDmg: 6.4, bombDmg: 15
+  },
+  { // 10 — chefão: todos os desafios juntos
+    id: 'bigbang', name: 'BIG BANG', enemy: 'bigbang', stars: 6, bpm: 148, seed: 7606, boss: true,
+    bg: ['#10042a', '#2d0f7a'], news: ['CHEFÃO: todos os desafios'],
+    root: 53, scale: PHRYG, prog: [0, 1, 0, 6],
+    drums: { kick: '1.1.1.1.1.1.1.1.', snare: '....1.......1.1.', hat: '1111111111111112' },
+    bass: 'rrr.rrrfrrr.rrro', lead: '0.24.54.02.45.42', leadWave: 'square', leadFrom: 1,
+    turnBars: 2, pairs: 18, quickFrom: 0.35,
+    density: 0.66, sync: 0.45, minGap: 1, extra: 0.4, bombs: 1.4, ghost: 0.6, twist: 0.5, pspeed: 1.2,
+    speed: 500, missDmg: 7, bombDmg: 16
+  }
+];
+</script>
+<script data-file="chart.js">
+/* =====================================================================
+   BAM BEAT! — chart.js
+   Gera a fase de cada música de forma determinística (mesma música =
+   mesma fase). A estrutura é sempre:
+
+       vez do CPU  ->  vez do jogador (repete a frase do CPU)  ->  ...
+
+   Na vez do jogador a frase é o "eco" da frase do CPU, mais:
+     - notas extras (dificuldade)
+     - bombas PLOFT (não apertar)
+     - notas fantasma (somem antes de chegar: dá pra lembrar da vez do CPU)
+     - TWIST: a coluna onde a seta aparece fica espelhada
+   ===================================================================== */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Frase base: lista de { step, lane } dentro de uma seção
+function makePhrase(rng, steps, dens, song) {
+  const out = [];
+  let lastStep = -99, lastLane = -1;
+  for (let s = 0; s < steps; s++) {
+    if (s - lastStep < song.minGap) continue;
+    if (s === steps - 1 && song.minGap > 1) continue;
+    const onBeat8 = s % 2 === 0;
+    let p = onBeat8 ? dens : dens * song.sync;
+    if (s % 16 === 0) p = Math.max(p, 0.9);
+    if (s === 0) p = 1;
+    if (rng() < p) {
+      let lane = Math.floor(rng() * 4);
+      if (lane === lastLane && rng() < 0.6) lane = (lane + 1 + Math.floor(rng() * 3)) % 4;
+      out.push({ step: s, lane });
+      lastStep = s;
+      lastLane = lane;
+    }
+  }
+  return out;
+}
+
+function placeExtras(rng, notes, steps, chance, song) {
+  const extras = [];
+  for (let s = 2; s < steps - 1; s += 2) {
+    if (rng() >= chance) continue;
+    const gap = Math.max(2, song.minGap);
+    if (notes.some((n) => Math.abs(n.step - s) < gap)) continue;
+    if (extras.some((n) => Math.abs(n.step - s) < gap)) continue;
+    let prev = null;
+    for (const n of notes) if (n.step < s && (!prev || n.step > prev.step)) prev = n;
+    let lane = Math.floor(rng() * 4);
+    if (prev && lane === prev.lane) lane = (lane + 1 + Math.floor(rng() * 3)) % 4;
+    extras.push({ step: s, lane, type: 'n', ghost: false, extra: true });
+  }
+  return extras;
+}
+
+function placeBombs(rng, taken, steps, count) {
+  const bombs = [];
+  for (let k = 0; k < count; k++) {
+    for (let tries = 0; tries < 24; tries++) {
+      const s = 2 + Math.floor(rng() * Math.max(1, steps - 3));
+      const all = taken.concat(bombs);
+      if (all.some((n) => Math.abs(n.step - s) < 2)) continue;
+      // "isca": com frequência a bomba aparece na mesma seta da nota anterior
+      let prev = null;
+      for (const n of taken) if (n.step < s && (!prev || n.step > prev.step)) prev = n;
+      const lane = prev && rng() < 0.6 ? prev.lane : Math.floor(rng() * 4);
+      bombs.push({ step: s, lane, type: 'b', ghost: false });
+      break;
+    }
+  }
+  return bombs;
+}
+
+function buildChart(song) {
+  const rng = mulberry32(song.seed);
+  const stepDur = 60 / song.bpm / 4;
+  const barDur = stepDur * 16;
+  const sections = [];
+  const notes = [];
+  let bar = 0;
+  let prevTwist = false;
+  let prevQuick = false;
+
+  const make = (n, who, startBar, flip) => ({
+    time: (startBar * 16 + n.step) * stepDur,
+    step: n.step,
+    lane: n.lane,
+    col: who === 'player' && flip ? 3 - n.lane : n.lane,
+    who,
+    type: n.type || 'n',
+    ghost: !!n.ghost,
+    extra: !!n.extra,
+    done: false, fired: false, eco: false
+  });
+
+  for (let p = 0; p < song.pairs; p++) {
+    const progress = song.pairs > 1 ? p / (song.pairs - 1) : 0;
+    const quick = song.quickFrom != null && progress >= song.quickFrom;
+    const bars = quick ? 1 : song.turnBars;
+    const steps = bars * 16;
+    const ramp = 0.85 + 0.35 * progress;          // a música fica mais difícil conforme avança
+    const dens = Math.min(0.92, song.density * ramp);
+
+    const flip = song.twist > 0 && p >= 2 && !prevTwist && rng() < song.twist;
+    prevTwist = flip;
+    const quickStart = quick && !prevQuick;   // primeiro duelo rápido da música
+    prevQuick = quick;
+
+    const phrase = makePhrase(rng, steps, dens, song);
+
+    // --- vez do CPU ---
+    sections.push({
+      who: 'cpu', pair: p, bar, bars, flip: false, nextFlip: flip, quick, quickStart,
+      startTime: bar * barDur, endTime: (bar + bars) * barDur
+    });
+    phrase.forEach((n) => notes.push(make(n, 'cpu', bar, false)));
+    bar += bars;
+
+    // --- vez do jogador ---
+    sections.push({
+      who: 'player', pair: p, bar, bars, flip, quick, quickStart,
+      startTime: bar * barDur, endTime: (bar + bars) * barDur
+    });
+    const ghostChance = Math.min(0.85, song.ghost * (0.7 + 0.6 * progress));
+    const echo = phrase.map((n, i) => ({
+      step: n.step, lane: n.lane, type: 'n',
+      ghost: i > 0 && rng() < ghostChance
+    }));
+    const extras = placeExtras(rng, echo, steps, song.extra * ramp, song);
+    const base = echo.concat(extras);
+    const bombCount = Math.floor(song.bombs * bars * (0.6 + 0.8 * progress) + rng());
+    const bombs = placeBombs(rng, base, steps, bombCount);
+    base.concat(bombs).forEach((n) => notes.push(make(n, 'player', bar, flip)));
+    bar += bars;
+  }
+
+  notes.sort((a, b) => a.time - b.time);
+  return {
+    notes,
+    cpu: notes.filter((n) => n.who === 'cpu'),
+    player: notes.filter((n) => n.who === 'player'),
+    sections,
+    stepDur,
+    barDur,
+    totalBars: bar + 1,
+    endTime: bar * barDur + barDur * 0.9
+  };
+}
+</script>
+<script data-file="characters.js">
+/* =====================================================================
+   BAM BEAT! — characters.js
+   Os personagens são onomatopeias vivas: o corpo carrega a palavra
+   (as letras balançam), e cada seta que eles cantam solta uma sílaba
+   diferente (esquerda, baixo, cima, direita).
+   ===================================================================== */
+const CHARACTERS = {
+  plim: {
+    name: 'PLIM', word: 'PLIM!', shape: 'hero', color: '#35e0ff', color2: '#1d86d6',
+    syll: ['PLIM', 'PLOF', 'PIU!', 'PLAM'],
+    miss: ['OPS!', 'UI!', 'AI!', 'TCHI!'],
+    voice: { wave: 'triangle', formants: [900, 600, 2200, 1200], shift: 0, len: 0.16, scoop: 0.8 }
+  },
+  tictac: {
+    name: 'TIC-TAC', word: 'TIC-TAC', shape: 'clock', color: '#ffd23f', color2: '#ff9f1c',
+    syll: ['TIC', 'TAC', 'TOC', 'DING!'],
+    miss: ['TIC?', 'DRIM!'],
+    voice: { wave: 'square', formants: [1000, 700, 1900, 1300], shift: -5, len: 0.1, scoop: 1 }
+  },
+  zzz: {
+    name: 'ZZZ', word: 'ZZZ...', shape: 'cloud', color: '#b79cff', color2: '#7b5cff',
+    syll: ['ZZZ', 'ZZ…', 'HRRR', 'PFFF'],
+    miss: ['HM?', 'ZZ!'],
+    voice: { wave: 'triangle', formants: [500, 400, 1500, 700], shift: -7, len: 0.28, scoop: 1.2 }
+  },
+  bzzt: {
+    name: 'BZZT', word: 'BZZT', shape: 'robot', color: '#52e3a4', color2: '#1d9e83',
+    syll: ['BZZT', 'BIP', 'BEEP', 'CLANK'],
+    miss: ['ERRO!', 'BZZ?'],
+    voice: { wave: 'sawtooth', formants: [1400, 900, 2400, 1800], shift: 0, len: 0.12, scoop: 1 }
+  },
+  boom: {
+    name: 'BOOM', word: 'BOOM', shape: 'bomb', color: '#ff6b4a', color2: '#c92a0b',
+    syll: ['BOO', 'TUM', 'POC', 'BOOM!'],
+    miss: ['PUF!', 'PFFT'],
+    voice: { wave: 'sawtooth', formants: [600, 500, 1100, 800], shift: -12, len: 0.2, scoop: 1.5 }
+  },
+  toc: {
+    name: 'TOC-TOC', word: 'TOC-TOC', shape: 'door', color: '#e0a060', color2: '#a8672a',
+    syll: ['TOC', 'TOC!', 'KNOC', 'TOK'],
+    miss: ['QUEM?', 'TOC?'],
+    voice: { wave: 'square', formants: [800, 500, 1600, 1000], shift: -3, len: 0.08, scoop: 1 }
+  },
+  pop: {
+    name: 'POP', word: 'POP!', shape: 'corn', color: '#ffe27a', color2: '#f2b01e',
+    syll: ['POP', 'PIPOC', 'POC!', 'PUFF'],
+    miss: ['PÓ!', 'POFT'],
+    voice: { wave: 'square', formants: [1100, 800, 2100, 1500], shift: 3, len: 0.07, scoop: 1.4 }
+  },
+  zap: {
+    name: 'ZAP', word: 'ZAP!', shape: 'star', color: '#fff25a', color2: '#ffb800',
+    syll: ['ZAP', 'ZIP', 'FZZT', 'KRAAK!'],
+    miss: ['ZZ…', 'ÉH?'],
+    voice: { wave: 'sawtooth', formants: [1500, 1000, 2600, 2000], shift: 2, len: 0.09, scoop: 1.3 }
+  },
+  vrum: {
+    name: 'VRUM', word: 'VRUM', shape: 'car', color: '#4a8cff', color2: '#1c46b8',
+    syll: ['VRUM', 'VRRUM', 'BIP!', 'NHEEN'],
+    miss: ['PUF…', 'PANE!'],
+    voice: { wave: 'sawtooth', formants: [700, 500, 1200, 900], shift: -5, len: 0.15, scoop: 0.7 }
+  },
+  crash: {
+    name: 'CRASH', word: 'CRASH', shape: 'star', color: '#ff4fa3', color2: '#c2185b',
+    syll: ['CRASH', 'SMASH', 'CLANG', 'KRAK!'],
+    miss: ['HÃ?', 'CRAC!'],
+    voice: { wave: 'sawtooth', formants: [1200, 800, 2000, 1500], shift: -2, len: 0.14, scoop: 1 }
+  },
+  bigbang: {
+    name: 'BIG BANG', word: 'BIG BANG', shape: 'boss', color: '#ffffff', color2: '#ffd23f',
+    syll: ['BIG', 'BANG', 'KABOOM', 'BAAAM!'],
+    miss: ['GRRR!', 'HÁ!'],
+    voice: { wave: 'square', formants: [500, 400, 900, 700], shift: -12, len: 0.22, scoop: 1.3 }
+  }
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-const app = document.getElementById("app");
+function createCharacter(id) {
+  const def = CHARACTERS[id];
+  const el = document.createElement('div');
+  el.className = 'char char-' + def.shape;
+  el.style.setProperty('--c1', def.color);
+  el.style.setProperty('--c2', def.color2);
+  el.dataset.pose = 'idle';
 
-let user = localStorage.getItem("user");
-let contatoAtual = "";
+  const letters = def.word
+    .split('')
+    .map((ch, i) => (ch === ' ' ? '<span class="sp">&nbsp;</span>' : `<span style="--i:${i}">${ch}</span>`))
+    .join('');
+  const deco = def.shape === 'cloud' ? '<em class="zz z1">Z</em><em class="zz z2">z</em><em class="zz z3">Z</em>' : '';
 
-// ================= REGISTRO =================
-function telaRegistro(){
-app.innerHTML=`
-<div class="header">Criar Conta</div>
-<div style="padding:12px">
-<input id="nome" placeholder="Nome único">
-<button onclick="registrar()">Entrar</button>
-</div>`;
+  el.innerHTML =
+    '<div class="char-bob">' +
+      '<div class="char-body">' +
+        `<div class="char-deco">${deco}</div>` +
+        '<div class="char-face"><div class="eyes"><div class="eye"><i></i></div><div class="eye"><i></i></div></div><div class="mouth"></div></div>' +
+        `<div class="char-word">${letters}</div>` +
+      '</div>' +
+    '</div>' +
+    '<div class="char-shadow"></div>' +
+    '<div class="char-pops"></div>';
+
+  const pops = el.querySelector('.char-pops');
+  let timer = null;
+
+  function pose(p, ms) {
+    el.dataset.pose = p;
+    clearTimeout(timer);
+    timer = setTimeout(() => { el.dataset.pose = 'idle'; }, ms || 240);
+  }
+
+  function say(text, cls) {
+    const s = document.createElement('span');
+    s.className = 'pop ' + (cls || '');
+    s.textContent = text;
+    s.style.left = 25 + Math.random() * 50 + '%';
+    pops.appendChild(s);
+    setTimeout(() => s.remove(), 750);
+  }
+
+  return {
+    def,
+    el,
+    sing(lane) { pose(String(lane), 230); say(def.syll[lane], 'l' + lane); },
+    miss() { pose('miss', 380); say(rand(def.miss), 'miss'); },
+    win() { clearTimeout(timer); el.dataset.pose = 'win'; },
+    lose() { clearTimeout(timer); el.dataset.pose = 'lose'; },
+    say,
+    setBeat(sec) { el.style.setProperty('--beat', sec + 's'); },
+    setActive(on) { el.classList.toggle('active', on); }
+  };
 }
+</script>
+<script data-file="game.js">
+/* =====================================================================
+   BAM BEAT! — game.js
+   Motor do jogo. O relógio é o do AudioContext, então as notas ficam
+   sempre sincronizadas com a música (e a pausa congela tudo).
 
-function registrar(){
-let nome=document.getElementById("nome").value.trim();
-if(!nome) return alert("Digite um nome");
+   Mecânicas:
+     TURNOS  o CPU canta, depois o jogador repete a mesma frase
+     ECO     apertar junto com o CPU carrega o BAM
+     BAM     modo turbo: pontos x2, bombas inofensivas, fantasmas visíveis
+     PLOFT   bombas: não apertar a seta delas
+     ZZZ     notas fantasma: somem antes de chegar
+     TWIST   as colunas se espelham: leia o desenho da seta
+     RUSH    notas extras além das que o CPU cantou
+     ZUUM    as setas do jogador descem mais rápido
+     DUELO   turnos de 1 compasso
 
-db.ref("users").once("value",snap=>{
-let users=snap.val()||{};
-if(Object.values(users).includes(nome)){
-alert("Nome já existe!");
-return;
-}
+   Julgamento de cada acerto (distância até o tempo certo):
+     PERFECT, GOOD, OK, BAD e, se passar da janela, MISS
+   ===================================================================== */
+const Game = (() => {
+  const W = 960, H = 540, LW = 70, REC_Y = 88, NOTE = 52;
+  const PX = { cpu: 24, player: 656 };
+  const COLORS = ['#ff4fd8', '#35e0ff', '#9bff4f', '#ff9a3d'];
+  const INK = '#1a1030';
+  const WIN = { perfect: 0.04, good: 0.075, ok: 0.105, bad: 0.135 };
+  const PTS = { perfect: 100, good: 75, ok: 50, bad: 20 };
+  const HEAL = { perfect: 2.4, good: 1.8, ok: 1.0, bad: 0.2 };
+  const CHARGE = { perfect: 3.6, good: 2.6, ok: 1.6, bad: 0.6 };
+  const ACC = { perfect: 1, good: 0.85, ok: 0.6, bad: 0.3 };
+  const LABEL = { perfect: 'PERFECT!', good: 'GOOD!', ok: 'OK', bad: 'BAD', miss: 'MISS' };
+  const BOMB_WIN = 0.1;
+  const BAM_LEN = 6.5;
+  const KEYMAP = {
+    ArrowLeft: 0, KeyA: 0, ArrowDown: 1, KeyS: 1, ArrowUp: 2, KeyW: 2, ArrowRight: 3, KeyD: 3
+  };
+  const WORDS = {
+    perfect: ['POW!', 'BAM!', 'ZAP!', 'WHAM!'],
+    good: ['PAF!', 'TOC!', 'PLIM!', 'TCHAC!'],
+    ok: ['TCHÃ'],
+    bad: ['PFT', 'UFA'],
+    miss: ['SPLAT!', 'ERRR!', 'OPS!'],
+    dodge: ['FIU!', 'ZUNN!'],
+    eco: ['eco~', 'ECO', 'tum']
+  };
 
-db.ref("users").push(nome);
-localStorage.setItem("user",nome);
-user=nome;
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), cv = $('canvas'), c = cv.getContext('2d');
+  const fx = $('fx'), bannerEl = $('banner'), countEl = $('count');
+  const slotE = $('slot-enemy'), slotP = $('slot-player'), bgEl = $('bg');
+  c.setTransform(2, 0, 0, 2, 0, 0);
 
-setOnline();
-telaHub();
-});
-}
+  let S = null;          // estado da partida
+  let hooks = {};
 
-// ================= ONLINE =================
-function setOnline(){
-let ref=db.ref("status/"+user);
-db.ref(".info/connected").on("value",snap=>{
-if(snap.val()){
-ref.set({online:true});
-ref.onDisconnect().set({online:false});
-}
-});
-}
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  function rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  }
+  function roundRect(x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function label(str, x, y, size, color, align) {
+    c.font = `${size}px Bangers, Impact, 'Arial Black', sans-serif`;
+    c.textAlign = align || 'center';
+    c.lineWidth = 5; c.lineJoin = 'round';
+    c.strokeStyle = INK;
+    c.strokeText(str, x, y);
+    c.fillStyle = color || '#fff';
+    c.fillText(str, x, y);
+  }
 
-// ================= HUB =================
-function telaHub(){
-app.innerHTML=`
-<div class="header">PI Chat - ${user}</div>
+  /* ------------------------------------------------------------------ */
+  /*  INÍCIO / FIM                                                      */
+  /* ------------------------------------------------------------------ */
+  function init(h) { hooks = h || {}; }
 
-<div style="padding:10px">
-<input id="contato" placeholder="Nome do contato">
-<button onclick="abrirChatPrivado()">Conversar</button>
-<button onclick="criarGrupo()">Grupo</button>
-</div>
+  function songTime() {
+    return BamAudio.now() - S.T0 - BamAudio.latency() - S.userOffset;
+  }
 
-<div id="lista" class="lista"></div>
-`;
+  function start(song, opts) {
+    stop();
+    opts = opts || {};
+    BamAudio.init();
+    const chart = buildChart(song);
+    const beat = chart.stepDur * 4;
 
-carregarContatos();
-}
+    S = {
+      song, chart, beat, opts,
+      cpuNotes: chart.cpu, plNotes: chart.player,
+      userOffset: (opts.offset || 0) / 1000,
+      T0: BamAudio.now() + 0.35 + beat * 4,
+      running: true, paused: false, resuming: false,
+      health: 50, score: 0, combo: 0, maxCombo: 0,
+      perfect: 0, good: 0, ok: 0, bad: 0, miss: 0, bombs: 0, dodged: 0, eco: 0,
+      bam: 0, bamOn: false, bamEnd: 0, bamReady: false,
+      secIdx: 0, secLast: -1, flipVis: false,
+      cpuVis: 0, cpuAud: 0, pPtr: 0, countShown: -1,
+      down: [false, false, false, false],
+      recFlash: [0, 0, 0, 0], cpuGlow: [0, 0, 0, 0],
+      recX: [0, 1, 2, 3].map((l) => PX.player + l * LW + LW / 2),
+      parts: [], pointers: new Map(), clock: 0
+    };
+    S.totalNotes = S.plNotes.filter((n) => n.type === 'n').length;
 
-function abrirChatPrivado(){
-let nome = document.getElementById("contato").value.trim();
-if(!nome) return;
+    // palco
+    slotE.innerHTML = ''; slotP.innerHTML = ''; fx.innerHTML = '';
+    S.chE = createCharacter(song.enemy);
+    S.chP = createCharacter('plim');
+    slotE.appendChild(S.chE.el);
+    slotP.appendChild(S.chP.el);
+    S.chE.setBeat(beat); S.chP.setBeat(beat);
+    stage.style.setProperty('--beat', beat + 's');
+    bgEl.style.background = `linear-gradient(180deg, ${song.bg[0]}, ${song.bg[1]})`;
+    const words = ['BAM', 'POW', 'TUM', 'ZAP', 'BOOM', 'PLIM', 'CRASH', 'TIC', 'TAC', 'ZZZ', 'BZZT', 'KABOOM'];
+    bgEl.innerHTML = words.map((w, i) =>
+      `<span style="left:${(i * 37) % 88}%;top:${(i * 53) % 82}%;font-size:${70 + (i % 4) * 26}px;--r:${(i % 5 - 2) * 9}deg">${w}</span>`
+    ).join('');
 
-db.ref("users").once("value",snap=>{
-let users = Object.values(snap.val()||{});
+    BamAudio.startSong(song, S.T0, chart.totalBars);
+    loop(S);
+  }
 
-if(!users.includes(nome)){
-alert("Usuário não existe!");
-return;
-}
+  function stop() {
+    if (S) S.running = false;
+    BamAudio.stopSong();
+    slotE.innerHTML = ''; slotP.innerHTML = ''; fx.innerHTML = '';
+    bannerEl.className = ''; countEl.className = '';
+    stage.classList.remove('bam', 'shake');
+    c.clearRect(0, 0, W, H);
+    S = null;
+  }
 
-add(user,nome);
-add(nome,user);
+  function restart() {
+    if (!S) return;
+    const song = S.song, opts = S.opts;
+    start(song, opts);
+  }
 
-abrirChat(nome);
-});
-}
+  function finish(won) {
+    if (!S || !S.running) return;
+    const mine = S;
+    mine.running = false;
+    BamAudio.stopSong();
+    stage.classList.remove('bam');
+    BamAudio.sfx(won ? 'win' : 'lose');
+    if (won) { mine.chP.win(); mine.chE.lose(); } else { mine.chP.lose(); mine.chE.win(); }
+    mine.chE.setActive(false); mine.chP.setActive(false);
+    const res = result(mine, won);
+    setTimeout(() => { if (S === mine && hooks.onEnd) hooks.onEnd(res, mine.song); }, won ? 900 : 1100);
+  }
 
-// ================= GRUPOS =================
-function criarGrupo(){
-let nome = prompt("Nome do grupo:");
-if(!nome) return;
+  function accPoints(s) {
+    return s.perfect * ACC.perfect + s.good * ACC.good + s.ok * ACC.ok + s.bad * ACC.bad;
+  }
 
-let id = "grupo_"+Date.now();
+  function result(s, won) {
+    const resolved = s.perfect + s.good + s.ok + s.bad + s.miss;
+    const pts = accPoints(s);
+    const acc = resolved ? pts / (won ? Math.max(1, s.totalNotes) : resolved) : 0;
+    let rank = 'D';
+    if (won) rank = acc >= 0.95 ? 'S' : acc >= 0.88 ? 'A' : acc >= 0.75 ? 'B' : acc >= 0.6 ? 'C' : 'D';
+    return {
+      won, rank, acc: Math.round(acc * 1000) / 10, score: s.score, maxCombo: s.maxCombo,
+      perfect: s.perfect, good: s.good, ok: s.ok, bad: s.bad, miss: s.miss, bombs: s.bombs, dodged: s.dodged, eco: s.eco
+    };
+  }
 
-db.ref("grupos/"+id).set({
-nome:nome,
-membros:[user]
-});
+  /* ------------------------------------------------------------------ */
+  /*  PAUSA                                                             */
+  /* ------------------------------------------------------------------ */
+  function pause() {
+    if (!S || !S.running || S.paused) return;
+    S.paused = true;
+    BamAudio.pause();
+    if (hooks.onPause) hooks.onPause();
+  }
 
-add(user,id);
-alert("ID: "+id);
-}
+  function resume() {
+    if (!S || !S.running || !S.paused || S.resuming) return;
+    const mine = S;
+    mine.resuming = true;
+    let n = 3;
+    showCount('3');
+    const iv = setInterval(() => {
+      if (S !== mine) { clearInterval(iv); return; }
+      n--;
+      if (n > 0) { showCount(String(n)); return; }
+      clearInterval(iv);
+      mine.resuming = false;
+      mine.paused = false;
+      BamAudio.resume();
+    }, 550);
+    if (hooks.onResume) hooks.onResume();
+  }
 
-// ================= CONTATOS =================
-function carregarContatos(){
-db.ref("contatos/"+user).on("value",snap=>{
-renderLista(snap.val()||[]);
-});
-}
+  /* ------------------------------------------------------------------ */
+  /*  LAÇO PRINCIPAL                                                    */
+  /* ------------------------------------------------------------------ */
+  function loop(mine) {
+    let last = performance.now();
+    const tick = () => {
+      if (S !== mine || !mine.running) return;
+      requestAnimationFrame(tick);
+      const nowMs = performance.now();
+      if (mine.paused) { last = nowMs; return; }
+      const dt = Math.min(0.05, (nowMs - last) / 1000);
+      last = nowMs;
+      const t = songTime();
+      update(t, dt);
+      if (S === mine && mine.running) render(t, dt);
+    };
+    requestAnimationFrame(tick);
+  }
 
-async function renderLista(lista){
-let container = document.getElementById("lista");
-container.innerHTML = "";
+  function update(t, dt) {
+    S.clock += dt;
 
-for(let c of lista){
+    // contagem: TIC, TAC, TIC, VAI!
+    if (t < 0) {
+      const k = Math.floor((t + S.beat * 4) / S.beat);
+      if (k !== S.countShown && k >= 0 && k <= 3) {
+        S.countShown = k;
+        showCount(['TIC', 'TAC', 'TIC', 'VAI!'][k]);
+      }
+    }
 
-let isGrupo = c.startsWith("grupo_");
-let nome = c;
-let ultimaMsg = "";
-let hora = "";
+    // seções (vez do CPU / vez do jogador)
+    const secs = S.chart.sections;
+    let i = S.secIdx;
+    while (i + 1 < secs.length && t >= secs[i + 1].startTime) i++;
+    S.secIdx = i;
+    if (t >= 0 && S.secLast !== i) { S.secLast = i; onSection(secs[i]); }
 
-let chatId = isGrupo ? c : [user,c].sort().join("_");
+    // CPU: som agendado com antecedência (preciso) ...
+    const cn = S.cpuNotes;
+    const nowA = BamAudio.now();
+    while (S.cpuAud < cn.length && S.T0 + cn[S.cpuAud].time <= nowA + 0.15) {
+      const n = cn[S.cpuAud++];
+      BamAudio.voice(S.song, S.chE.def.voice, n.lane, Math.floor(n.time / S.chart.barDur), S.T0 + n.time, 0.8);
+    }
+    // ... e visual na hora da nota
+    while (S.cpuVis < cn.length && cn[S.cpuVis].time <= t) {
+      const n = cn[S.cpuVis++];
+      n.fired = true;
+      S.chE.sing(n.lane);
+      S.cpuGlow[n.lane] = 1;
+      burst(PX.cpu + n.lane * LW + LW / 2, REC_Y, COLORS[n.lane], 6);
+    }
 
-let snap = await db.ref("chats/"+chatId).limitToLast(1).once("value");
-let msgs = snap.val();
+    // jogador: notas que passaram da janela
+    const pn = S.plNotes;
+    for (let k = S.pPtr; k < pn.length; k++) {
+      const n = pn[k];
+      if (n.time > t - WIN.bad) break;
+      if (!n.done) resolveMiss(n);
+    }
+    while (S.pPtr < pn.length && pn[S.pPtr].done) S.pPtr++;
 
-if(msgs){
-let m = Object.values(msgs)[0];
-ultimaMsg = m.texto;
-hora = new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-}
+    // BAM
+    if (S.bamOn) {
+      S.bam = clamp(((S.bamEnd - t) / BAM_LEN) * 100, 0, 100);
+      if (t >= S.bamEnd) endBam();
+    }
 
-if(isGrupo){
-let g = await db.ref("grupos/"+c).once("value");
-nome = "👥 "+(g.val()?.nome || "Grupo");
-}else{
-nome = "👤 "+c;
-}
+    // brilhos
+    for (let l = 0; l < 4; l++) {
+      S.recFlash[l] = Math.max(0, S.recFlash[l] - dt * 4);
+      S.cpuGlow[l] = Math.max(0, S.cpuGlow[l] - dt * 5);
+      const target = PX.player + (S.flipVis ? 3 - l : l) * LW + LW / 2;
+      S.recX[l] += (target - S.recX[l]) * Math.min(1, dt * 14);
+    }
 
-let div = document.createElement("div");
-div.className="contato";
-div.onclick=()=>abrirChat(c);
+    if (S.health <= 0) { S.health = 0; finish(false); return; }
+    if (t >= S.chart.endTime) finish(true);
+  }
 
-div.innerHTML=`
-<div>${nome}</div>
-<small>${ultimaMsg || ""} ${hora}</small>
-`;
+  // dicas dos desafios da fase, mostradas uma por rodada (o chefão tem todas)
+  function challengeHints(song) {
+    const h = [];
+    if (song.bombs > 0) h.push('PLOFT: bomba preta = NÃO aperte!');
+    if (song.ghost > 0) h.push('ZZZ: setas fantasma somem. Lembre da vez do CPU!');
+    if (song.extra > 0) h.push('RUSH: tem notas extras além das do CPU!');
+    if ((song.pspeed || 1) > 1) h.push('ZUUM: as setas vêm bem mais rápido!');
+    return h;
+  }
 
-container.appendChild(div);
-}
-}
+  function onSection(sec) {
+    const cpu = sec.who === 'cpu';
+    S.chE.setActive(cpu);
+    S.chP.setActive(!cpu);
+    S.flipVis = cpu ? sec.nextFlip : sec.flip;
+    BamAudio.sfx('turn');
+    const round = `Rodada ${sec.pair + 1} de ${S.song.pairs}`;
+    const hints = challengeHints(S.song);
+    if (cpu) {
+      let sub = round;
+      if (sec.nextFlip) sub = 'TWIST! Na sua vez as colunas se invertem';
+      else if (sec.quickStart) sub = 'DUELO RÁPIDO! Turnos de 1 compasso';
+      else if (sec.pair === 0) sub = 'Preste atenção. Aperte junto para fazer ECO!';
+      showBanner('VEZ DO ' + S.chE.def.name, sub, 'cpu');
+    } else {
+      let sub = round;
+      if (sec.flip) sub = 'TWIST! Leia a seta, não a coluna';
+      else if (sec.quickStart) sub = 'DUELO RÁPIDO! Rápido, é a sua vez!';
+      else if (sec.pair < hints.length) sub = hints[sec.pair];
+      showBanner('SUA VEZ!', sub, 'player');
+    }
+  }
 
-// ================= CHAT =================
-function abrirChat(nome){
-contatoAtual=nome;
+  /* ------------------------------------------------------------------ */
+  /*  ENTRADA                                                           */
+  /* ------------------------------------------------------------------ */
+  function press(lane) {
+    if (!S || !S.running || S.paused) return;
+    S.down[lane] = true;
+    const t = songTime();
+    const pn = S.plNotes;
 
-let isGrupo=nome.startsWith("grupo_");
-let chatId=isGrupo?nome:[user,nome].sort().join("_");
+    let best = null, bd = 9, bs = 0;
+    for (let i = S.pPtr; i < pn.length; i++) {
+      const n = pn[i];
+      if (n.time > t + WIN.bad) break;
+      if (n.done || n.lane !== lane) continue;
+      const d = Math.abs(n.time - t);
+      const lim = n.type === 'b' ? BOMB_WIN : WIN.bad;
+      if (d <= lim && d < bd) { best = n; bd = d; bs = t - n.time; }
+    }
+    if (best) {
+      if (best.type === 'b') hitBomb(best); else hitNote(best, bd, bs);
+      return;
+    }
 
-app.innerHTML=`
-<div class="header">
-<span onclick="telaHub()">⬅️</span>
-<span id="topo">${nome}</span>
-</div>
+    // ECO: apertar junto com a nota do CPU
+    for (const n of S.cpuNotes) {
+      if (n.time > t + 0.2) break;
+      if (n.lane === lane && !n.eco && Math.abs(n.time - t) <= 0.11) {
+        n.eco = true;
+        S.eco++;
+        S.score += 15;
+        addBam(1.6);
+        S.recFlash[lane] = 0.6;
+        BamAudio.sfx('eco');
+        judgePop('eco', PX.cpu + lane * LW + LW / 2);
+        break;
+      }
+    }
+  }
 
-<div id="msgs" class="chat-box"></div>
+  function release(lane) { if (S) S.down[lane] = false; }
 
-<div class="chat-input">
-<input id="msg" placeholder="Mensagem">
-<button onclick="enviar()">➤</button>
-</div>
-`;
+  function addBam(v) {
+    if (S.bamOn) return;
+    S.bam = Math.min(100, S.bam + v);
+    if (S.bam >= 100 && !S.bamReady) {
+      S.bamReady = true;
+      BamAudio.sfx('ready');
+      showBanner('BAM PRONTO!', 'Aperte ESPAÇO', 'bam');
+    }
+  }
 
-if(isGrupo){
-db.ref("grupos/"+nome).once("value",snap=>{
-let g=snap.val();
-if(g) document.getElementById("topo").innerText="👥 "+g.nome;
-});
-}
+  function activateBam() {
+    if (!S || !S.running || S.paused || S.bamOn || S.bam < 100) return;
+    S.bamOn = true;
+    S.bamReady = false;
+    S.bamEnd = songTime() + BAM_LEN;
+    stage.classList.add('bam');
+    BamAudio.sfx('bam');
+    showBanner('BAAAM!', 'Pontos em dobro • bombas inofensivas', 'bam');
+    S.chP.say('BAAAM!', 'bam');
+  }
 
-db.ref("chats/"+chatId).on("value",snap=>{
-let msgs=snap.val()||{};
-let html="";
+  function endBam() {
+    S.bamOn = false;
+    S.bam = 0;
+    stage.classList.remove('bam');
+    BamAudio.sfx('bamoff');
+  }
 
-Object.values(msgs).forEach(m=>{
-let hora=new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  /* ------------------------------------------------------------------ */
+  /*  ACERTOS E ERROS                                                   */
+  /* ------------------------------------------------------------------ */
+  function noteX(n) { return PX.player + n.col * LW + LW / 2; }
 
-html+=`
-<div class="msg ${m.de===user?'me':'other'}">
-${isGrupo?`<div class="nomeGrupo">${m.de}</div>`:""}
-${m.texto}
-<div class="time">${hora}</div>
-</div>`;
-});
+  function rate(d) {
+    return d <= WIN.perfect ? 'perfect' : d <= WIN.good ? 'good' : d <= WIN.ok ? 'ok' : 'bad';
+  }
 
-let box=document.getElementById("msgs");
-box.innerHTML=html;
-box.scrollTop=box.scrollHeight;
-});
-}
+  // d = distância até o tempo certo; late = (agora - tempo da nota): positivo = tarde
+  function hitNote(n, d, late) {
+    const j = rate(d);
+    n.done = true;
+    S[j]++;
+    S.combo++;
+    S.maxCombo = Math.max(S.maxCombo, S.combo);
+    const mult = (1 + Math.min(10, Math.floor(S.combo / 10)) * 0.1) * (S.bamOn ? 2 : 1);
+    S.score += Math.round(PTS[j] * mult);
+    S.health = Math.min(100, S.health + HEAL[j] + (S.bamOn ? 1 : 0));
+    addBam(CHARGE[j]);
+    S.recFlash[n.lane] = j === 'perfect' ? 1.3 : 1;
+    S.chP.sing(n.lane);
+    BamAudio.voice(S.song, S.chP.def.voice, n.lane, Math.floor(n.time / S.chart.barDur), 0, j === 'bad' ? 0.5 : 0.9);
+    const x = noteX(n);
+    // ok e bad avisam se foi cedo ou tarde; perfect e good soltam a onomatopeia
+    const sub = j === 'ok' || j === 'bad' ? (late < 0 ? 'cedo' : 'tarde') : pick(WORDS[j]);
+    judgePop(j, x, null, sub);
+    burst(x, REC_Y, COLORS[n.lane], j === 'perfect' ? 12 : 7);
+    if (j === 'perfect') burst(x, REC_Y, '#ffe84a', 8);
+    if (S.combo > 0 && S.combo % 25 === 0) judgePop('combo', PX.player + 2 * LW, 'COMBO ' + S.combo + '!');
+  }
 
-// ================= ENVIAR =================
-function enviar(){
-let input=document.getElementById("msg");
-let texto=input.value.trim();
-if(!texto) return;
+  function hitBomb(n) {
+    n.done = true;
+    const x = noteX(n);
+    if (S.bamOn) {
+      S.score += 50;
+      judgePop('dodge', x, 'DEFUSE!');
+      burst(x, REC_Y, '#ffffff', 8);
+      BamAudio.sfx('eco');
+      return;
+    }
+    S.bombs++;
+    S.combo = 0;
+    S.health -= S.song.bombDmg;
+    S.chP.miss();
+    BamAudio.sfx('bomb');
+    shake();
+    judgePop('bomb', x, 'PLOFT!!');
+    burst(x, REC_Y, '#ff4a4a', 24);
+  }
 
-let isGrupo=contatoAtual.startsWith("grupo_");
-let chatId=isGrupo?contatoAtual:[user,contatoAtual].sort().join("_");
+  function resolveMiss(n) {
+    n.done = true;
+    const x = noteX(n);
+    if (n.type === 'b') {
+      S.dodged++;
+      S.score += 30;
+      addBam(2);
+      judgePop('dodge', x);
+      BamAudio.sfx('dodge');
+      return;
+    }
+    S.miss++;
+    S.combo = 0;
+    S.health -= S.song.missDmg * (S.bamOn ? 0.5 : 1);
+    S.chP.miss();
+    BamAudio.sfx('miss');
+    judgePop('miss', x, null, pick(WORDS.miss));
+  }
 
-db.ref("chats/"+chatId).push({
-de:user,
-texto,
-time:Date.now()
-});
+  /* ------------------------------------------------------------------ */
+  /*  EFEITOS DE TELA                                                   */
+  /* ------------------------------------------------------------------ */
+  function judgePop(kind, x, text, sub) {
+    const e = document.createElement('div');
+    e.className = 'jpop j-' + kind;
+    e.textContent = text || LABEL[kind] || pick(WORDS[kind] || ['!']);
+    if (sub) {
+      const sm = document.createElement('small');
+      sm.textContent = sub;
+      e.appendChild(sm);
+    }
+    e.style.left = clamp(x, 70, W - 70) + 'px';   // não deixa o texto vazar da tela
+    e.style.top = (REC_Y + 58) + 'px';
+    fx.appendChild(e);
+    setTimeout(() => e.remove(), 700);
+  }
 
-input.value="";
-}
+  function showBanner(main, sub, cls) {
+    bannerEl.className = '';
+    bannerEl.innerHTML = `<b>${main}</b>` + (sub ? `<small>${sub}</small>` : '');
+    void bannerEl.offsetWidth;
+    bannerEl.className = 'show ' + (cls || '');
+  }
 
-// ================= AUTO ADD =================
-function add(d,c){
-db.ref("contatos/"+d).once("value",s=>{
-let lista=s.val()||[];
-if(!lista.includes(c)){
-lista.push(c);
-db.ref("contatos/"+d).set(lista);
-}
-});
-}
+  function showCount(text) {
+    countEl.className = '';
+    countEl.textContent = text;
+    void countEl.offsetWidth;
+    countEl.className = 'show';
+  }
 
-// ================= START =================
-if(!user){
-telaRegistro();
-}else{
-setOnline();
-telaHub();
-}
+  function shake() {
+    stage.classList.remove('shake');
+    void stage.offsetWidth;
+    stage.classList.add('shake');
+    setTimeout(() => stage.classList.remove('shake'), 380);
+  }
 
+  function burst(x, y, color, n) {
+    if (S.parts.length > 260) return;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 220;
+      S.parts.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.45 + Math.random() * 0.3, max: 0.75, color, size: 2 + Math.random() * 3
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  DESENHO                                                           */
+  /* ------------------------------------------------------------------ */
+  function arrowPath(x, y, s, lane) {
+    const rot = [-Math.PI / 2, Math.PI, 0, Math.PI / 2][lane];
+    const a = s * 0.5, b = s * 0.22;
+    c.save();
+    c.translate(x, y);
+    c.rotate(rot);
+    c.beginPath();
+    c.moveTo(0, -a); c.lineTo(a, 0); c.lineTo(b, 0); c.lineTo(b, a * 0.95);
+    c.lineTo(-b, a * 0.95); c.lineTo(-b, 0); c.lineTo(-a, 0);
+    c.closePath();
+    c.restore();
+  }
+
+  function drawArrow(x, y, s, lane, fill, stroke, lw) {
+    arrowPath(x, y, s, lane);
+    c.fillStyle = fill; c.fill();
+    c.lineWidth = lw; c.lineJoin = 'round'; c.strokeStyle = stroke; c.stroke();
+  }
+
+  function drawBomb(x, y, s) {
+    const r = s * 0.42;
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2);
+    c.fillStyle = '#1b1b2a'; c.fill();
+    c.lineWidth = 3; c.strokeStyle = '#ff4a4a'; c.stroke();
+    c.beginPath(); c.moveTo(x + r * 0.45, y - r * 0.85); c.lineTo(x + r * 0.8, y - r * 1.3);
+    c.lineWidth = 3; c.strokeStyle = '#c9a35a'; c.stroke();
+    const f = 0.7 + 0.3 * Math.sin(S.clock * 30);
+    c.beginPath(); c.arc(x + r * 0.85, y - r * 1.35, 5 * f, 0, Math.PI * 2);
+    c.fillStyle = '#ffd23f'; c.fill();
+    c.font = `22px Bangers, Impact, sans-serif`;
+    c.textAlign = 'center';
+    c.fillStyle = '#fff';
+    c.fillText('!', x, y + 8);
+  }
+
+  function drawPanel(who, active) {
+    const x = PX[who] - 6, y = 36, w = 4 * LW + 12, h = H - 36 - 14;
+    const col = who === 'cpu' ? S.chE.def.color : S.chP.def.color;
+    c.save();
+    c.globalAlpha = active ? 1 : 0.5;
+    roundRect(x, y, w, h, 18);
+    c.fillStyle = 'rgba(8,4,24,.55)'; c.fill();
+    if (who === 'player' && S.bamOn) {
+      c.strokeStyle = `hsl(${(S.clock * 400) % 360},100%,65%)`;
+      c.shadowColor = c.strokeStyle; c.shadowBlur = 18;
+    } else {
+      c.strokeStyle = active ? col : 'rgba(255,255,255,.14)';
+    }
+    c.lineWidth = active ? 4 : 2;
+    c.stroke();
+    c.shadowBlur = 0;
+    c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      c.beginPath(); c.moveTo(PX[who] + i * LW, y + 8); c.lineTo(PX[who] + i * LW, y + h - 8); c.stroke();
+    }
+    c.restore();
+    label(who === 'cpu' ? S.chE.def.name : 'VOCÊ', PX[who] + 2 * LW, 27, 20, active ? col : 'rgba(255,255,255,.6)');
+  }
+
+  function render(t, dt) {
+    c.clearRect(0, 0, W, H);
+    const sec = S.chart.sections[S.secIdx];
+    const cpuTurn = sec.who === 'cpu';
+
+    drawPanel('cpu', cpuTurn);
+    drawPanel('player', !cpuTurn);
+
+    // receptores do CPU
+    for (let l = 0; l < 4; l++) {
+      const g = S.cpuGlow[l];
+      const x = PX.cpu + l * LW + LW / 2;
+      drawArrow(x, REC_Y, NOTE * (1 + 0.12 * g), l,
+        g > 0.05 ? rgba(COLORS[l], 0.25 + 0.6 * g) : 'rgba(255,255,255,.06)', rgba(COLORS[l], 0.6), 3);
+    }
+    // receptores do jogador (deslizam quando há TWIST)
+    for (let l = 0; l < 4; l++) {
+      const pressed = S.down[l], fl = S.recFlash[l];
+      const size = NOTE * (pressed ? 0.92 : 1 + 0.15 * fl);
+      drawArrow(S.recX[l], REC_Y, size, l,
+        pressed || fl > 0 ? rgba(COLORS[l], 0.3 + 0.55 * Math.max(fl, pressed ? 0.5 : 0)) : 'rgba(255,255,255,.06)',
+        rgba(COLORS[l], pressed ? 1 : 0.7), 3);
+    }
+
+    // notas do CPU
+    const spd = S.song.speed;
+    for (const n of S.cpuNotes) {
+      if (n.fired) continue;
+      const y = REC_Y + (n.time - t) * spd;
+      if (y > H + 40) break;
+      drawArrow(PX.cpu + n.lane * LW + LW / 2, y, NOTE, n.lane, COLORS[n.lane], '#fff', 2);
+    }
+    // notas do jogador (ZUUM: descem mais rápido)
+    const pSpd = spd * (S.song.pspeed || 1);
+    const pn = S.plNotes;
+    for (let i = S.pPtr; i < pn.length; i++) {
+      const n = pn[i];
+      const y = REC_Y + (n.time - t) * pSpd;
+      if (y > H + 40) break;
+      if (n.done) continue;
+      const x = noteX(n);
+      if (n.type === 'b') { drawBomb(x, y, NOTE); continue; }
+      let a = 1;
+      if (n.ghost && !S.bamOn) a = clamp((y - REC_Y - 70) / 130, 0, 1);
+      if (a <= 0.02) continue;
+      c.globalAlpha = a;
+      drawArrow(x, y, NOTE, n.lane, COLORS[n.lane], n.ghost ? 'rgba(255,255,255,.9)' : '#fff', n.ghost ? 3 : 2);
+      c.globalAlpha = 1;
+    }
+
+    // partículas
+    for (let i = S.parts.length - 1; i >= 0; i--) {
+      const p = S.parts[i];
+      p.life -= dt;
+      if (p.life <= 0) { S.parts.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt;
+      c.globalAlpha = clamp(p.life / p.max, 0, 1);
+      c.fillStyle = p.color;
+      c.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    c.globalAlpha = 1;
+
+    drawHUD(t, cpuTurn);
+  }
+
+  function drawHUD(t, cpuTurn) {
+    // progresso da música
+    const prog = clamp(t / S.chart.endTime, 0, 1);
+    c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(0, 0, W, 5);
+    c.fillStyle = '#ffd23f'; c.fillRect(0, 0, W * prog, 5);
+
+    // barra de BAM
+    const mx = 330, my = 14, mw = 300, mh = 22;
+    roundRect(mx, my, mw, mh, 11);
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fill();
+    if (S.bam > 0) {
+      c.save();
+      roundRect(mx, my, mw, mh, 11); c.clip();
+      const g = c.createLinearGradient(mx, 0, mx + mw, 0);
+      g.addColorStop(0, '#35e0ff'); g.addColorStop(0.5, '#ffd23f'); g.addColorStop(1, '#ff4fd8');
+      c.fillStyle = g;
+      c.fillRect(mx, my, mw * (S.bam / 100), mh);
+      c.restore();
+    }
+    roundRect(mx, my, mw, mh, 11);
+    c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+    const full = S.bam >= 100 && !S.bamOn;
+    const blink = Math.sin(S.clock * 10) > 0;
+    label(S.bamOn ? 'BAM!!!' : full ? (blink ? 'ESPAÇO = BAM!' : 'BAM PRONTO!') : 'BAM', mx + mw / 2, my + 18, 18, '#fff');
+
+    // de quem é a vez
+    if (cpuTurn) {
+      label('VEZ DO ' + S.chE.def.name, 480, 70, 26, S.chE.def.color);
+      label('aperte junto = ECO', 480, 92, 16, 'rgba(255,255,255,.75)');
+    } else {
+      label('SUA VEZ!', 480, 70, 30, S.chP.def.color);
+    }
+
+    // barra de vida
+    const hx = 300, hy = 484, hw = 360, hh = 18;
+    roundRect(hx, hy, hw, hh, 9);
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fill();
+    c.save();
+    roundRect(hx, hy, hw, hh, 9); c.clip();
+    const pw = hw * clamp(S.health, 0, 100) / 100;
+    c.fillStyle = S.chE.def.color; c.fillRect(hx, hy, hw - pw, hh);
+    c.fillStyle = S.chP.def.color; c.fillRect(hx + hw - pw, hy, pw, hh);
+    c.restore();
+    roundRect(hx, hy, hw, hh, 9);
+    c.lineWidth = 4;
+    c.strokeStyle = S.health < 25 && Math.sin(S.clock * 14) > 0 ? '#ff4a4a' : INK;
+    c.stroke();
+
+    // placar
+    const resolved = S.perfect + S.good + S.ok + S.bad + S.miss;
+    const acc = resolved ? Math.round((accPoints(S) / resolved) * 100) : 100;
+    label(S.chE.def.name, hx, 478, 18, S.chE.def.color, 'left');
+    label('PONTOS ' + S.score + '   COMBO ' + S.combo + '   ' + acc + '%', 480, 526, 20, '#fff');
+    label('PLIM', hx + hw, 478, 18, S.chP.def.color, 'right');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  ENTRADA: teclado e toque                                          */
+  /* ------------------------------------------------------------------ */
+  window.addEventListener('keydown', (e) => {
+    if (!S || !S.running) return;
+    if (e.code === 'Escape' || e.code === 'KeyP') {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (S.paused) { if (hooks.onResumeRequest) hooks.onResumeRequest(); else resume(); } else pause();
+      return;
+    }
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (!e.repeat) activateBam();
+      return;
+    }
+    const lane = KEYMAP[e.code];
+    if (lane === undefined) return;
+    e.preventDefault();
+    if (!e.repeat) press(lane);
+  });
+
+  window.addEventListener('keyup', (e) => {
+    const lane = KEYMAP[e.code];
+    if (lane !== undefined) release(lane);
+  });
+
+  cv.addEventListener('pointerdown', (e) => {
+    if (!S || !S.running) return;
+    e.preventDefault();
+    const r = cv.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * W;
+    const y = ((e.clientY - r.top) / r.height) * H;
+    if (y < 48 && x > 320 && x < 640) { activateBam(); return; }
+    let lane = -1;
+    if (x >= PX.player - 6 && x <= PX.player + 4 * LW + 6) {
+      const col = clamp(Math.floor((x - PX.player) / LW), 0, 3);
+      lane = S.flipVis ? 3 - col : col;
+    } else if (x >= PX.cpu - 6 && x <= PX.cpu + 4 * LW + 6) {
+      lane = clamp(Math.floor((x - PX.cpu) / LW), 0, 3);
+    }
+    if (lane < 0) return;
+    S.pointers.set(e.pointerId, lane);
+    press(lane);
+  });
+
+  function pointerEnd(e) {
+    if (!S) return;
+    const lane = S.pointers.get(e.pointerId);
+    if (lane === undefined) return;
+    S.pointers.delete(e.pointerId);
+    release(lane);
+  }
+  cv.addEventListener('pointerup', pointerEnd);
+  cv.addEventListener('pointercancel', pointerEnd);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && S && S.running && !S.paused) pause();
+  });
+
+  return {
+    init, start, stop, restart, pause, resume,
+    isRunning: () => !!(S && S.running),
+    isPaused: () => !!(S && S.paused)
+  };
+})();
+</script>
+<script data-file="main.js">
+/* =====================================================================
+   BAM BEAT! — main.js
+   Menus, progresso salvo (localStorage), resultados e ajuste de tela.
+   ===================================================================== */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const app = $('app');
+  const SCREENS = ['title', 'select', 'help', 'opts', 'pause', 'results'];
+  let current = 0;
+
+  /* ---------------- progresso ---------------- */
+  const KEY = 'bambeat.v1';
+  const Save = {
+    data: { best: {}, offset: 0, volume: 80 },
+    load() {
+      try {
+        const j = JSON.parse(localStorage.getItem(KEY));
+        if (j && typeof j === 'object') Object.assign(this.data, j);
+      } catch (e) { /* sem localStorage: segue sem salvar */ }
+    },
+    store() {
+      try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* ignora */ }
+    }
+  };
+  Save.load();
+
+  /* ---------------- telas ---------------- */
+  function show(name) {
+    SCREENS.forEach((s) => $('screen-' + s).classList.toggle('hidden', s !== name));
+    $('btn-pause').classList.toggle('hidden', name !== null);
+  }
+
+  function fit() {
+    const k = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+    app.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  /* ---------------- seleção de músicas ---------------- */
+  // fase liberada = primeira, já vencida, ou com a anterior vencida
+  const isCleared = (i) => !!Save.data.best[SONGS[i].id];
+  const isUnlocked = (i) => i === 0 || isCleared(i) || isCleared(i - 1);
+
+  function buildSelect() {
+    const box = $('songs');
+    box.innerHTML = '';
+    let next = -1;
+    SONGS.forEach((s, i) => {
+      const locked = !isUnlocked(i);
+      if (next < 0 && !locked && !isCleared(i)) next = i;
+      const best = Save.data.best[s.id];
+      const card = document.createElement('div');
+      card.className = 'card' + (locked ? ' locked' : '') + (s.boss ? ' boss' : '') + (isCleared(i) ? ' cleared' : '');
+      card.style.background = `linear-gradient(160deg, ${s.bg[0]}, ${s.bg[1]})`;
+      card.innerHTML =
+        '<div class="card-char"></div>' +
+        '<div class="card-info">' +
+          `<div class="card-num">${s.boss ? 'CHEFÃO' : 'FASE ' + (i + 1)}</div>` +
+          `<div class="card-name">${s.name}</div>` +
+          `<div class="card-meta"><span class="card-stars">${'★'.repeat(s.stars)}${'☆'.repeat(6 - s.stars)}</span><span class="card-bpm">${s.bpm} BPM</span></div>` +
+          `<div class="card-tags">${s.news.map((n) => `<span>${n}</span>`).join('')}</div>` +
+          `<div class="card-best">${locked ? 'Vença a anterior' : best ? 'Melhor: ' + best.score + ' (' + best.rank + ')' : 'Sem recorde ainda'}</div>` +
+        '</div>' +
+        (locked ? '<div class="lock">BLOQUEADA</div>' : '');
+      card.querySelector('.card-char').appendChild(createCharacter(s.enemy).el);
+      card.addEventListener('click', () => {
+        if (locked) { BamAudio.init(); BamAudio.sfx('miss'); return; }
+        startSong(i);
+      });
+      box.appendChild(card);
+    });
+    // rola a lista até a próxima fase ainda não vencida
+    const cards = box.children;
+    const target = cards[next >= 0 ? next : 0];
+    box.scrollTop = target ? Math.max(0, target.offsetTop - 8) : 0;
+  }
+
+  function startSong(i) {
+    current = i;
+    BamAudio.init();
+    BamAudio.sfx('click');
+    show(null);
+    Game.start(SONGS[i], { offset: Save.data.offset });
+  }
+
+  /* ---------------- resultados ---------------- */
+  const FLAVOR = {
+    S: 'KABOOOM! Perfeito, o palco inteiro tremeu!',
+    A: 'BAM! Mandou muito bem!',
+    B: 'PLIM! Nada mal, dá pra melhorar.',
+    C: 'TUM... passou raspando.',
+    D: 'SPLAT! Treine mais um pouquinho.'
+  };
+
+  function showResults(res, song) {
+    $('res-title').textContent = res.won ? (song.boss ? 'CHEFÃO DERROTADO!' : 'VITÓRIA!') : 'SPLAT! VOCÊ CAIU';
+    $('res-rank').textContent = res.won ? res.rank : '✕';
+    $('res-rank').className = 'rank r-' + (res.won ? res.rank : 'X');
+    $('res-flavor').textContent = res.won ? FLAVOR[res.rank] : 'A vida acabou antes da música. Tente de novo!';
+    $('res-score').textContent = res.score;
+    $('res-acc').textContent = res.acc + '%';
+    $('res-combo').textContent = res.maxCombo;
+    $('res-perfect').textContent = res.perfect;
+    $('res-good').textContent = res.good;
+    $('res-ok').textContent = res.ok;
+    $('res-bad').textContent = res.bad;
+    $('res-miss').textContent = res.miss;
+    $('res-bombs').textContent = res.bombs + ' (desviou ' + res.dodged + ')';
+    $('res-bombs').parentElement.parentElement.classList.toggle('hidden', !song.bombs);   // só mostra PLOFT nas fases com bomba
+    $('res-eco').textContent = res.eco;
+
+    if (res.won) {
+      const old = Save.data.best[song.id];
+      if (!old || res.score > old.score) Save.data.best[song.id] = { score: res.score, rank: res.rank };
+      Save.store();
+    }
+    $('res-next').classList.toggle('hidden', !(res.won && current + 1 < SONGS.length));
+    show('results');
+  }
+
+  /* ---------------- ligações ---------------- */
+  Game.init({
+    onPause: () => show('pause'),
+    onResume: () => show(null),
+    onEnd: showResults
+  });
+
+  $('btn-play').onclick = () => { BamAudio.init(); BamAudio.sfx('click'); buildSelect(); show('select'); };
+  $('btn-help').onclick = () => { BamAudio.init(); BamAudio.sfx('click'); show('help'); };
+  $('btn-opts').onclick = () => { BamAudio.init(); BamAudio.sfx('click'); show('opts'); };
+  $('btn-select-back').onclick = () => show('title');
+  $('btn-help-back').onclick = () => show('title');
+  $('btn-opts-back').onclick = () => show('title');
+
+  $('btn-pause').onclick = () => Game.pause();
+  $('pause-resume').onclick = () => Game.resume();
+  $('pause-restart').onclick = () => { show(null); Game.restart(); };
+  $('pause-menu').onclick = () => { Game.stop(); buildSelect(); show('select'); };
+
+  $('res-next').onclick = () => startSong(current + 1);
+  $('res-retry').onclick = () => startSong(current);
+  $('res-menu').onclick = () => { Game.stop(); buildSelect(); show('select'); };
+
+  /* ---------------- opções ---------------- */
+  const vol = $('opt-vol'), off = $('opt-off');
+  function paintOpts() {
+    $('out-vol').textContent = vol.value + '%';
+    $('out-off').textContent = (off.value > 0 ? '+' : '') + off.value + ' ms';
+  }
+  vol.value = Save.data.volume;
+  off.value = Save.data.offset;
+  paintOpts();
+  BamAudio.setVolume(Save.data.volume / 100);
+  vol.oninput = () => {
+    Save.data.volume = +vol.value;
+    BamAudio.setVolume(vol.value / 100);
+    paintOpts(); Save.store();
+  };
+  off.oninput = () => { Save.data.offset = +off.value; paintOpts(); Save.store(); };
+  $('btn-reset').onclick = () => {
+    if (confirm('Apagar todo o progresso e recordes?')) {
+      Save.data.best = {};
+      Save.store();
+    }
+  };
+
+  show('title');
+})();
 </script>
 </body>
 </html>
